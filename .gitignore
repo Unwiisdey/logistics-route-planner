@@ -1,0 +1,19 @@
+# Out-of-source builds and generated outputs
+/build/
+/build-*/
+/out/
+/work/
+# Keep the original course assignment local; requirements are documented in docs/.
+/第2题 电商物流配送路径规划系统.docx
+CMakeUserPresets.json
+compile_commands.json
+
+# IDE state and local files
+.vs/
+.idea/
+*.user
+*.suo
+*.log
+~$*
+.DS_Store
+Thumbs.db
