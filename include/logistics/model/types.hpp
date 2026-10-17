@@ -1,46 +1,12 @@
 #pragma once
 
+#include "logistics/model/Node.h"
+#include "logistics/model/Edge.h"
+
 #include <optional>
 #include <string>
 
 namespace logistics {
-
-using NodeId = std::string;
-using OrderId = std::string;
-using RoadId = std::string;
-using Minutes = double;  // Minutes since the start of the simulation day.
-
-enum class NodeType { Warehouse, DeliveryPoint, TransferStation };
-enum class TrafficStatus { Clear, Congested, Closed };
-enum class OrderPriority { Normal, Urgent };
-enum class OrderStatus { Pending, Scheduled, Delivered, Late, NeedsAttention };
-
-struct Coordinates {
-    double x{0.0};
-    double y{0.0};
-};
-
-struct Node {
-    NodeId id;
-    NodeType type{NodeType::DeliveryPoint};
-    Coordinates coordinates;
-};
-
-struct Road {
-    RoadId id;
-    NodeId from;
-    NodeId to;
-    double distance_km{0.0};
-    Minutes base_travel_minutes{0.0};
-    Minutes current_travel_minutes{0.0};
-    double cost_yuan{0.0};
-    TrafficStatus traffic_status{TrafficStatus::Clear};
-};
-
-struct TimeWindow {
-    Minutes earliest{0.0};
-    Minutes latest{0.0};
-};
 
 struct Order {
     OrderId id;
