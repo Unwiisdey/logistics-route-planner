@@ -1,0 +1,2 @@
+# Optional plotting dependency; C++ build and CSV export do not need Python.
+matplotlib==3.10.7

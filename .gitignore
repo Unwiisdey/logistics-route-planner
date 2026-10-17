@@ -3,6 +3,10 @@
 /build-*/
 /out/
 /work/
+/exports/
+__pycache__/
+*.pyc
+.venv/
 # Keep the original course assignment local; requirements are documented in docs/.
 /第2题 电商物流配送路径规划系统.docx
 CMakeUserPresets.json

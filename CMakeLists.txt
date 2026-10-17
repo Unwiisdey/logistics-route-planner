@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.16)
 
-project(LogisticsRoutePlanner VERSION 0.2.0 LANGUAGES CXX)
+project(LogisticsRoutePlanner VERSION 0.3.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -11,6 +11,9 @@ add_library(logistics_core STATIC
     src/model/Edge.cpp
     src/graph/Graph.cpp
     src/config/ConfigLoader.cpp
+    src/planning/Dijkstra.cpp
+    src/planning/Planner.cpp
+    src/visualization/Visualizer.cpp
 )
 target_include_directories(logistics_core PUBLIC
     "${CMAKE_CURRENT_SOURCE_DIR}/include"

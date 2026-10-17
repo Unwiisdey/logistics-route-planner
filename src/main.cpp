@@ -1,9 +1,56 @@
 #include "logistics/config/ConfigLoader.h"
+#include "logistics/planning/Planner.h"
+#include "logistics/visualization/Visualizer.h"
+#include <algorithm>
 #include <filesystem>
+#include <iomanip>
 #include <iostream>
 #include <optional>
 #include <stdexcept>
 #include <string>
+#include <vector>
+
+namespace {
+double parse_number(const std::string& text, const std::string& option) {
+    std::size_t consumed = 0;
+    const double value = std::stod(text, &consumed);
+    if (consumed != text.size()) { throw std::invalid_argument(option + " expects a number"); }
+    return value;
+}
+
+std::vector<logistics::NodeId> parse_deliveries(const std::string& text) {
+    std::vector<logistics::NodeId> ids;
+    if (text.empty()) { return ids; }
+    std::size_t start = 0;
+    while (true) {
+        const auto end = text.find(',', start);
+        const auto id = text.substr(start, end == std::string::npos ? end : end - start);
+        if (id.empty()) { throw std::invalid_argument("--deliveries contains an empty node ID"); }
+        ids.push_back(id);
+        if (end == std::string::npos) { break; }
+        start = end + 1;
+    }
+    return ids;
+}
+
+void print_plan(const logistics::RoutePlan& plan) {
+    std::cout << "Strategy: " << (plan.strategy == logistics::RouteStrategy::ShortestDistance ? "distance" : "cost")
+              << " | Method: nearest-neighbor + Dijkstra\nDelivery order: ";
+    for (std::size_t index = 0; index < plan.stops.size(); ++index) {
+        if (index != 0) { std::cout << " -> "; }
+        std::cout << plan.stops[index].node_id;
+    }
+    std::cout << "\nPath nodes: ";
+    for (std::size_t index = 0; index < plan.node_sequence.size(); ++index) {
+        if (index != 0) { std::cout << " -> "; }
+        std::cout << plan.node_sequence[index];
+    }
+    std::cout << std::fixed << std::setprecision(2)
+              << "\nTotal distance: " << plan.total_distance_km << " km\nTotal travel time: "
+              << plan.total_travel_minutes << " min\nTotal cost: " << plan.total_cost_yuan << " CNY\n"
+              << "Heuristic tour; time windows and global tour optimality are not enforced.\n";
+}
+}  // namespace
 
 int main(int argc, char* argv[]) {
     try {
@@ -12,12 +59,19 @@ int main(int argc, char* argv[]) {
         bool check_size = false;
         bool summary_only = false;
         std::optional<logistics::WeightMetric> matrix;
+        bool plan_enabled = false;
+        bool planning_options = false;
+        logistics::PlanningRequest request;
+        std::optional<std::filesystem::path> export_directory;
         for (int index = 1; index < argc; ++index) {
             const std::string argument = argv[index];
             if (argument == "--help") {
-                std::cout << "Usage: logistics_app [--config FILE] [--matrix distance|time|cost] "
-                             "[--summary] [--check-size]\n"
-                             "Default: load config/network.json and print its adjacency list.\n";
+                std::cout << "Usage: logistics_app [--config FILE] [--check-size]\n"
+                             "  [--summary | --matrix distance|time|cost | --plan distance|cost]\n"
+                             "Planning: [--warehouse ID] [--deliveries ID,ID,...] [--departure MINUTES]\n"
+                             "          [--capacity KG] [--export DIRECTORY]\n"
+                             "Default: print adjacency list. Planning defaults to the first warehouse\n"
+                             "by ID and all delivery points. Capacity is checked only when provided.\n";
                 return 0;
             } else if (argument == "--config" && index + 1 < argc) {
                 path = std::filesystem::path(argv[++index]);
@@ -32,22 +86,64 @@ int main(int argc, char* argv[]) {
                 summary_only = true;
             } else if (argument == "--check-size") {
                 check_size = true;
+            } else if (argument == "--plan" && index + 1 < argc) {
+                const std::string value = argv[++index];
+                if (value == "distance") { request.strategy = logistics::RouteStrategy::ShortestDistance; }
+                else if (value == "cost") { request.strategy = logistics::RouteStrategy::LowestCost; }
+                else { throw std::invalid_argument("--plan expects distance or cost"); }
+                plan_enabled = true;
+            } else if (argument == "--warehouse" && index + 1 < argc) {
+                request.warehouse_id = argv[++index];
+                planning_options = true;
+            } else if (argument == "--deliveries" && index + 1 < argc) {
+                request.delivery_node_ids = parse_deliveries(argv[++index]);
+                planning_options = true;
+            } else if (argument == "--departure" && index + 1 < argc) {
+                request.departure_time = parse_number(argv[++index], argument);
+                planning_options = true;
+            } else if (argument == "--capacity" && index + 1 < argc) {
+                request.capacity_kg = parse_number(argv[++index], argument);
+                planning_options = true;
+            } else if (argument == "--export" && index + 1 < argc) {
+                export_directory = std::filesystem::path(argv[++index]);
+                planning_options = true;
             } else {
                 throw std::invalid_argument("unknown or incomplete option: " + argument);
             }
         }
         if (summary_only && matrix) { throw std::invalid_argument("--summary and --matrix cannot be combined"); }
+        if (plan_enabled && (summary_only || matrix)) { throw std::invalid_argument("--plan cannot be combined with --summary or --matrix"); }
+        if (!plan_enabled && planning_options) { throw std::invalid_argument("planning options require --plan"); }
         if (!explicit_path && !std::filesystem::exists(path)) {
             path = std::filesystem::path(argv[0]).parent_path() / "config" / "network.json";
         }
         const auto graph = logistics::ConfigLoader::load_network(path, check_size);
-        std::cout << "Logistics Route Planner v0.2.0\n"
+        std::cout << "Logistics Route Planner v0.3.0\n"
                   << "Nodes: " << graph.node_count() << " | Edges: " << graph.edge_count() << '\n'
                   << "Warehouses: " << graph.node_count(logistics::NodeType::Warehouse)
                   << " | Delivery points: " << graph.node_count(logistics::NodeType::DeliveryPoint)
                   << " | Transfer stations: " << graph.node_count(logistics::NodeType::TransferStation) << '\n';
         if (check_size) { std::cout << "Course size requirements: PASS\n"; }
-        if (matrix) { graph.print_adjacency_matrix(std::cout, *matrix); }
+        if (plan_enabled) {
+            if (request.warehouse_id.empty()) {
+                std::vector<logistics::NodeId> warehouses;
+                for (const auto& entry : graph.nodes()) {
+                    if (entry.second.type() == logistics::NodeType::Warehouse) { warehouses.push_back(entry.first); }
+                }
+                if (warehouses.empty()) { throw std::invalid_argument("network has no warehouse"); }
+                request.warehouse_id = *std::min_element(warehouses.begin(), warehouses.end());
+            }
+            const auto plan = logistics::Planner::plan(graph, request);
+            if (plan.status != logistics::PlanStatus::Feasible) {
+                std::cerr << "Planning failed: " << plan.diagnostic << '\n';
+                return 2;
+            }
+            print_plan(plan);
+            if (export_directory) {
+                logistics::Visualizer::export_csv(graph, plan, *export_directory);
+                std::cout << "CSV exported to: " << export_directory->u8string() << '\n';
+            }
+        } else if (matrix) { graph.print_adjacency_matrix(std::cout, *matrix); }
         else if (!summary_only) { graph.print_adjacency_list(std::cout); }
         return 0;
     } catch (const std::exception& error) {

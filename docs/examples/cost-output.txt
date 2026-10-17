@@ -1,0 +1,12 @@
+Logistics Route Planner v0.3.0
+Nodes: 30 | Edges: 98
+Warehouses: 2 | Delivery points: 25 | Transfer stations: 3
+Course size requirements: PASS
+Strategy: cost | Method: nearest-neighbor + Dijkstra
+Delivery order: W01 -> D01 -> D02 -> D03 -> D04 -> D05 -> D10 -> D15 -> D14 -> D09 -> D08 -> D07 -> D06 -> D11 -> D12 -> D13 -> D18 -> D19 -> D24 -> D23 -> D22 -> D17 -> D16 -> D21 -> D25 -> D20 -> W01
+Path nodes: W01 -> D01 -> D02 -> D03 -> D04 -> D05 -> D10 -> D15 -> D14 -> D09 -> D08 -> T01 -> D07 -> D06 -> D11 -> D12 -> D13 -> D18 -> D19 -> D24 -> D23 -> D22 -> D17 -> D16 -> D21 -> D22 -> D23 -> D24 -> D25 -> W02 -> D20 -> D15 -> D10 -> D05 -> D04 -> D03 -> D02 -> D01 -> W01
+Total distance: 76.00 km
+Total travel time: 205.00 min
+Total cost: 89.70 CNY
+Heuristic tour; time windows and global tour optimality are not enforced.
+CSV exported to: docs/examples/cost

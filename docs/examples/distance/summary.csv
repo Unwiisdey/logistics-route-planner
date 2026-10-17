@@ -1,0 +1,2 @@
+strategy,method,status,start,warehouse,departure_minutes,delivery_count,total_distance,total_time,total_cost
+distance,nearest_neighbor_dijkstra,feasible,"W01","W01",480,25,72,202,86.100000000000009
