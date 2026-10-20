@@ -1,0 +1,5 @@
+order_id,node_id,quantity,earliest,latest,arrival,service_start,delivered_at,late_minutes,penalty_points,status,warehouse_id,priority,picked_up_at
+"O01","D03",20,480,900,617,617,619,0,0,delivered,"W01",normal,480
+"O02","D12",20,480,900,593,593,595,0,0,delivered,"W01",normal,480
+"O03","D21",20,480,900,572,572,574,0,0,delivered,"W01",normal,480
+"URGENT01","D05",15,482,542,522,522,524,0,0,delivered,"W01",urgent,493

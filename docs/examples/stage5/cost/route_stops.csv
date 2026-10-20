@@ -1,0 +1,9 @@
+revision,stop_index,order_id,action,route_step,arrival,service_start,departure,load_after
+1,0,"O03",delivery,4,504,504,506,40
+1,1,"O02",delivery,7,523,523,525,20
+1,2,"O01",delivery,11,549,549,551,0
+2,0,"URGENT01",pickup,1,493,493,493,75
+2,1,"URGENT01",delivery,6,522,522,524,60
+2,2,"O03",delivery,15,568,568,570,40
+2,3,"O02",delivery,18,587,587,589,20
+2,4,"O01",delivery,22,613,613,615,0

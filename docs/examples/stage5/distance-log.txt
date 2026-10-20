@@ -1,0 +1,115 @@
+Logistics Route Planner v0.5.0
+Nodes: 30 | Edges: 98
+Warehouses: 2 | Delivery points: 25 | Transfer stations: 3
+Vehicle V01 capacity=100.00 kg; step=5.00 min; unload=2.00 min; fixed late penalty=10.00 points/order
+[08:00 | 480.00 min] start status=idle location=W01 remaining=0.00 load=60.00 delivered=0 late=0 penalty=0.00 revision=1
+[08:00 | 480.00 min] depart status=driving location=W01->D06 edge=E003 progress=0.00 remaining=6.00 load=60.00 delivered=0 late=0 penalty=0.00 revision=1
+[08:02 | 482.00 min] tick status=driving location=W01->D06 edge=E003 progress=0.33 remaining=4.00 load=60.00 delivered=0 late=0 penalty=0.00 revision=1
+[08:02 | 482.00 min] order_accepted status=driving location=W01->D06 edge=E003 progress=0.33 remaining=4.00 load=60.00 delivered=0 late=0 penalty=0.00 revision=1 detail=URGENT01 anchor=08:06 path=D06 -> W01 -> D01 -> D02 -> D03 -> D04 -> D05 -> D04 -> D03 -> D02 -> D01 -> D07 -> D06 -> D11 -> D16 -> D21 -> D16 -> D11 -> D12 -> D07 -> D01 -> D02 -> D03 -> D02 -> D01 -> W01
+[08:03 | 483.00 min] tick status=driving location=W01->D06 edge=E003 progress=0.50 remaining=3.00 load=60.00 delivered=0 late=0 penalty=0.00 revision=1
+[08:03 | 483.00 min] order_rejected status=driving location=W01->D06 edge=E003 progress=0.50 remaining=3.00 load=60.00 delivered=0 late=0 penalty=0.00 revision=1 detail=OVERLOAD01: no feasible insertion found; last constraint failure: pickup would exceed vehicle capacity
+[08:04 | 484.00 min] tick status=driving location=W01->D06 edge=E003 progress=0.67 remaining=2.00 load=60.00 delivered=0 late=0 penalty=0.00 revision=1
+[08:04 | 484.00 min] order_rejected status=driving location=W01->D06 edge=E003 progress=0.67 remaining=2.00 load=60.00 delivered=0 late=0 penalty=0.00 revision=1 detail=IMPOSSIBLE01: no feasible insertion found; last constraint failure: time window missed: IMPOSSIBLE01
+[08:06 | 486.00 min] arrive status=idle location=D06 remaining=0.00 load=60.00 delivered=0 late=0 penalty=0.00 revision=1 detail=E003
+[08:06 | 486.00 min] route_activated status=idle location=D06 remaining=0.00 load=60.00 delivered=0 late=0 penalty=0.00 revision=2 detail=revision=2
+[08:06 | 486.00 min] depart status=driving location=D06->W01 edge=E004 progress=0.00 remaining=7.00 load=60.00 delivered=0 late=0 penalty=0.00 revision=2
+[08:09 | 489.00 min] tick status=driving location=D06->W01 edge=E004 progress=0.43 remaining=4.00 load=60.00 delivered=0 late=0 penalty=0.00 revision=2
+[08:13 | 493.00 min] arrive status=idle location=W01 remaining=0.00 load=60.00 delivered=0 late=0 penalty=0.00 revision=2 detail=E004
+[08:13 | 493.00 min] pickup status=idle location=W01 remaining=0.00 load=75.00 delivered=0 late=0 penalty=0.00 revision=2 detail=URGENT01
+[08:13 | 493.00 min] depart status=driving location=W01->D01 edge=E001 progress=0.00 remaining=5.00 load=75.00 delivered=0 late=0 penalty=0.00 revision=2
+[08:14 | 494.00 min] tick status=driving location=W01->D01 edge=E001 progress=0.20 remaining=4.00 load=75.00 delivered=0 late=0 penalty=0.00 revision=2
+[08:18 | 498.00 min] arrive status=idle location=D01 remaining=0.00 load=75.00 delivered=0 late=0 penalty=0.00 revision=2 detail=E001
+[08:18 | 498.00 min] depart status=driving location=D01->D02 edge=E005 progress=0.00 remaining=7.00 load=75.00 delivered=0 late=0 penalty=0.00 revision=2
+[08:19 | 499.00 min] tick status=driving location=D01->D02 edge=E005 progress=0.14 remaining=6.00 load=75.00 delivered=0 late=0 penalty=0.00 revision=2
+[08:24 | 504.00 min] tick status=driving location=D01->D02 edge=E005 progress=0.86 remaining=1.00 load=75.00 delivered=0 late=0 penalty=0.00 revision=2
+[08:25 | 505.00 min] arrive status=idle location=D02 remaining=0.00 load=75.00 delivered=0 late=0 penalty=0.00 revision=2 detail=E005
+[08:25 | 505.00 min] depart status=driving location=D02->D03 edge=E009 progress=0.00 remaining=5.00 load=75.00 delivered=0 late=0 penalty=0.00 revision=2
+[08:29 | 509.00 min] tick status=driving location=D02->D03 edge=E009 progress=0.80 remaining=1.00 load=75.00 delivered=0 late=0 penalty=0.00 revision=2
+[08:30 | 510.00 min] arrive status=idle location=D03 remaining=0.00 load=75.00 delivered=0 late=0 penalty=0.00 revision=2 detail=E009
+[08:30 | 510.00 min] depart status=driving location=D03->D04 edge=E013 progress=0.00 remaining=7.00 load=75.00 delivered=0 late=0 penalty=0.00 revision=2
+[08:34 | 514.00 min] tick status=driving location=D03->D04 edge=E013 progress=0.57 remaining=3.00 load=75.00 delivered=0 late=0 penalty=0.00 revision=2
+[08:37 | 517.00 min] arrive status=idle location=D04 remaining=0.00 load=75.00 delivered=0 late=0 penalty=0.00 revision=2 detail=E013
+[08:37 | 517.00 min] depart status=driving location=D04->D05 edge=E017 progress=0.00 remaining=5.00 load=75.00 delivered=0 late=0 penalty=0.00 revision=2
+[08:39 | 519.00 min] tick status=driving location=D04->D05 edge=E017 progress=0.40 remaining=3.00 load=75.00 delivered=0 late=0 penalty=0.00 revision=2
+[08:42 | 522.00 min] arrive status=idle location=D05 remaining=0.00 load=75.00 delivered=0 late=0 penalty=0.00 revision=2 detail=E017
+[08:42 | 522.00 min] unload_on_time status=unloading location=D05 remaining=2.00 load=75.00 delivered=0 late=0 penalty=0.00 revision=2 detail=URGENT01
+[08:44 | 524.00 min] delivered_on_time status=idle location=D05 remaining=0.00 load=60.00 delivered=1 late=0 penalty=0.00 revision=2 detail=URGENT01
+[08:44 | 524.00 min] depart status=driving location=D05->D04 edge=E018 progress=0.00 remaining=6.00 load=60.00 delivered=1 late=0 penalty=0.00 revision=2
+[08:44 | 524.00 min] tick status=driving location=D05->D04 edge=E018 progress=0.00 remaining=6.00 load=60.00 delivered=1 late=0 penalty=0.00 revision=2
+[08:49 | 529.00 min] tick status=driving location=D05->D04 edge=E018 progress=0.83 remaining=1.00 load=60.00 delivered=1 late=0 penalty=0.00 revision=2
+[08:50 | 530.00 min] arrive status=idle location=D04 remaining=0.00 load=60.00 delivered=1 late=0 penalty=0.00 revision=2 detail=E018
+[08:50 | 530.00 min] depart status=driving location=D04->D03 edge=E014 progress=0.00 remaining=4.00 load=60.00 delivered=1 late=0 penalty=0.00 revision=2
+[08:54 | 534.00 min] arrive status=idle location=D03 remaining=0.00 load=60.00 delivered=1 late=0 penalty=0.00 revision=2 detail=E014
+[08:54 | 534.00 min] depart status=driving location=D03->D02 edge=E010 progress=0.00 remaining=6.00 load=60.00 delivered=1 late=0 penalty=0.00 revision=2
+[08:54 | 534.00 min] tick status=driving location=D03->D02 edge=E010 progress=0.00 remaining=6.00 load=60.00 delivered=1 late=0 penalty=0.00 revision=2
+[08:59 | 539.00 min] tick status=driving location=D03->D02 edge=E010 progress=0.83 remaining=1.00 load=60.00 delivered=1 late=0 penalty=0.00 revision=2
+[09:00 | 540.00 min] arrive status=idle location=D02 remaining=0.00 load=60.00 delivered=1 late=0 penalty=0.00 revision=2 detail=E010
+[09:00 | 540.00 min] depart status=driving location=D02->D01 edge=E006 progress=0.00 remaining=4.00 load=60.00 delivered=1 late=0 penalty=0.00 revision=2
+[09:04 | 544.00 min] arrive status=idle location=D01 remaining=0.00 load=60.00 delivered=1 late=0 penalty=0.00 revision=2 detail=E006
+[09:04 | 544.00 min] depart status=driving location=D01->D07 edge=E007 progress=0.00 remaining=4.00 load=60.00 delivered=1 late=0 penalty=0.00 revision=2
+[09:04 | 544.00 min] tick status=driving location=D01->D07 edge=E007 progress=0.00 remaining=4.00 load=60.00 delivered=1 late=0 penalty=0.00 revision=2
+[09:08 | 548.00 min] arrive status=idle location=D07 remaining=0.00 load=60.00 delivered=1 late=0 penalty=0.00 revision=2 detail=E007
+[09:08 | 548.00 min] depart status=driving location=D07->D06 edge=E024 progress=0.00 remaining=6.00 load=60.00 delivered=1 late=0 penalty=0.00 revision=2
+[09:09 | 549.00 min] tick status=driving location=D07->D06 edge=E024 progress=0.17 remaining=5.00 load=60.00 delivered=1 late=0 penalty=0.00 revision=2
+[09:14 | 554.00 min] arrive status=idle location=D06 remaining=0.00 load=60.00 delivered=1 late=0 penalty=0.00 revision=2 detail=E024
+[09:14 | 554.00 min] depart status=driving location=D06->D11 edge=E025 progress=0.00 remaining=6.00 load=60.00 delivered=1 late=0 penalty=0.00 revision=2
+[09:14 | 554.00 min] tick status=driving location=D06->D11 edge=E025 progress=0.00 remaining=6.00 load=60.00 delivered=1 late=0 penalty=0.00 revision=2
+[09:19 | 559.00 min] tick status=driving location=D06->D11 edge=E025 progress=0.83 remaining=1.00 load=60.00 delivered=1 late=0 penalty=0.00 revision=2
+[09:20 | 560.00 min] arrive status=idle location=D11 remaining=0.00 load=60.00 delivered=1 late=0 penalty=0.00 revision=2 detail=E025
+[09:20 | 560.00 min] depart status=driving location=D11->D16 edge=E047 progress=0.00 remaining=6.00 load=60.00 delivered=1 late=0 penalty=0.00 revision=2
+[09:24 | 564.00 min] tick status=driving location=D11->D16 edge=E047 progress=0.67 remaining=2.00 load=60.00 delivered=1 late=0 penalty=0.00 revision=2
+[09:26 | 566.00 min] arrive status=idle location=D16 remaining=0.00 load=60.00 delivered=1 late=0 penalty=0.00 revision=2 detail=E047
+[09:26 | 566.00 min] depart status=driving location=D16->D21 edge=E069 progress=0.00 remaining=6.00 load=60.00 delivered=1 late=0 penalty=0.00 revision=2
+[09:29 | 569.00 min] tick status=driving location=D16->D21 edge=E069 progress=0.50 remaining=3.00 load=60.00 delivered=1 late=0 penalty=0.00 revision=2
+[09:32 | 572.00 min] arrive status=idle location=D21 remaining=0.00 load=60.00 delivered=1 late=0 penalty=0.00 revision=2 detail=E069
+[09:32 | 572.00 min] unload_on_time status=unloading location=D21 remaining=2.00 load=60.00 delivered=1 late=0 penalty=0.00 revision=2 detail=O03
+[09:34 | 574.00 min] delivered_on_time status=idle location=D21 remaining=0.00 load=40.00 delivered=2 late=0 penalty=0.00 revision=2 detail=O03
+[09:34 | 574.00 min] depart status=driving location=D21->D16 edge=E070 progress=0.00 remaining=7.00 load=40.00 delivered=2 late=0 penalty=0.00 revision=2
+[09:34 | 574.00 min] tick status=driving location=D21->D16 edge=E070 progress=0.00 remaining=7.00 load=40.00 delivered=2 late=0 penalty=0.00 revision=2
+[09:39 | 579.00 min] tick status=driving location=D21->D16 edge=E070 progress=0.71 remaining=2.00 load=40.00 delivered=2 late=0 penalty=0.00 revision=2
+[09:41 | 581.00 min] arrive status=idle location=D16 remaining=0.00 load=40.00 delivered=2 late=0 penalty=0.00 revision=2 detail=E070
+[09:41 | 581.00 min] depart status=driving location=D16->D11 edge=E048 progress=0.00 remaining=7.00 load=40.00 delivered=2 late=0 penalty=0.00 revision=2
+[09:44 | 584.00 min] tick status=driving location=D16->D11 edge=E048 progress=0.43 remaining=4.00 load=40.00 delivered=2 late=0 penalty=0.00 revision=2
+[09:48 | 588.00 min] arrive status=idle location=D11 remaining=0.00 load=40.00 delivered=2 late=0 penalty=0.00 revision=2 detail=E048
+[09:48 | 588.00 min] depart status=driving location=D11->D12 edge=E045 progress=0.00 remaining=5.00 load=40.00 delivered=2 late=0 penalty=0.00 revision=2
+[09:49 | 589.00 min] tick status=driving location=D11->D12 edge=E045 progress=0.20 remaining=4.00 load=40.00 delivered=2 late=0 penalty=0.00 revision=2
+[09:53 | 593.00 min] arrive status=idle location=D12 remaining=0.00 load=40.00 delivered=2 late=0 penalty=0.00 revision=2 detail=E045
+[09:53 | 593.00 min] unload_on_time status=unloading location=D12 remaining=2.00 load=40.00 delivered=2 late=0 penalty=0.00 revision=2 detail=O02
+[09:54 | 594.00 min] tick status=unloading location=D12 remaining=1.00 load=40.00 delivered=2 late=0 penalty=0.00 revision=2
+[09:55 | 595.00 min] delivered_on_time status=idle location=D12 remaining=0.00 load=20.00 delivered=3 late=0 penalty=0.00 revision=2 detail=O02
+[09:55 | 595.00 min] depart status=driving location=D12->D07 edge=E030 progress=0.00 remaining=5.00 load=20.00 delivered=3 late=0 penalty=0.00 revision=2
+[09:59 | 599.00 min] tick status=driving location=D12->D07 edge=E030 progress=0.80 remaining=1.00 load=20.00 delivered=3 late=0 penalty=0.00 revision=2
+[10:00 | 600.00 min] arrive status=idle location=D07 remaining=0.00 load=20.00 delivered=3 late=0 penalty=0.00 revision=2 detail=E030
+[10:00 | 600.00 min] depart status=driving location=D07->D01 edge=E008 progress=0.00 remaining=5.00 load=20.00 delivered=3 late=0 penalty=0.00 revision=2
+[10:04 | 604.00 min] tick status=driving location=D07->D01 edge=E008 progress=0.80 remaining=1.00 load=20.00 delivered=3 late=0 penalty=0.00 revision=2
+[10:05 | 605.00 min] arrive status=idle location=D01 remaining=0.00 load=20.00 delivered=3 late=0 penalty=0.00 revision=2 detail=E008
+[10:05 | 605.00 min] depart status=driving location=D01->D02 edge=E005 progress=0.00 remaining=7.00 load=20.00 delivered=3 late=0 penalty=0.00 revision=2
+[10:09 | 609.00 min] tick status=driving location=D01->D02 edge=E005 progress=0.57 remaining=3.00 load=20.00 delivered=3 late=0 penalty=0.00 revision=2
+[10:12 | 612.00 min] arrive status=idle location=D02 remaining=0.00 load=20.00 delivered=3 late=0 penalty=0.00 revision=2 detail=E005
+[10:12 | 612.00 min] depart status=driving location=D02->D03 edge=E009 progress=0.00 remaining=5.00 load=20.00 delivered=3 late=0 penalty=0.00 revision=2
+[10:14 | 614.00 min] tick status=driving location=D02->D03 edge=E009 progress=0.40 remaining=3.00 load=20.00 delivered=3 late=0 penalty=0.00 revision=2
+[10:17 | 617.00 min] arrive status=idle location=D03 remaining=0.00 load=20.00 delivered=3 late=0 penalty=0.00 revision=2 detail=E009
+[10:17 | 617.00 min] unload_on_time status=unloading location=D03 remaining=2.00 load=20.00 delivered=3 late=0 penalty=0.00 revision=2 detail=O01
+[10:19 | 619.00 min] delivered_on_time status=idle location=D03 remaining=0.00 load=0.00 delivered=4 late=0 penalty=0.00 revision=2 detail=O01
+[10:19 | 619.00 min] depart status=driving location=D03->D02 edge=E010 progress=0.00 remaining=6.00 load=0.00 delivered=4 late=0 penalty=0.00 revision=2
+[10:19 | 619.00 min] tick status=driving location=D03->D02 edge=E010 progress=0.00 remaining=6.00 load=0.00 delivered=4 late=0 penalty=0.00 revision=2
+[10:24 | 624.00 min] tick status=driving location=D03->D02 edge=E010 progress=0.83 remaining=1.00 load=0.00 delivered=4 late=0 penalty=0.00 revision=2
+[10:25 | 625.00 min] arrive status=idle location=D02 remaining=0.00 load=0.00 delivered=4 late=0 penalty=0.00 revision=2 detail=E010
+[10:25 | 625.00 min] depart status=driving location=D02->D01 edge=E006 progress=0.00 remaining=4.00 load=0.00 delivered=4 late=0 penalty=0.00 revision=2
+[10:29 | 629.00 min] arrive status=idle location=D01 remaining=0.00 load=0.00 delivered=4 late=0 penalty=0.00 revision=2 detail=E006
+[10:29 | 629.00 min] depart status=driving location=D01->W01 edge=E002 progress=0.00 remaining=6.00 load=0.00 delivered=4 late=0 penalty=0.00 revision=2
+[10:29 | 629.00 min] tick status=driving location=D01->W01 edge=E002 progress=0.00 remaining=6.00 load=0.00 delivered=4 late=0 penalty=0.00 revision=2
+[10:34 | 634.00 min] tick status=driving location=D01->W01 edge=E002 progress=0.83 remaining=1.00 load=0.00 delivered=4 late=0 penalty=0.00 revision=2
+[10:35 | 635.00 min] arrive status=idle location=W01 remaining=0.00 load=0.00 delivered=4 late=0 penalty=0.00 revision=2 detail=E002
+[10:35 | 635.00 min] returned status=idle location=W01 remaining=0.00 load=0.00 delivered=4 late=0 penalty=0.00 revision=2
+Order results:
+  O01 destination=D03 status=delivered late_minutes=0.00 penalty=0.00
+  O02 destination=D12 status=delivered late_minutes=0.00 penalty=0.00
+  O03 destination=D21 status=delivered late_minutes=0.00 penalty=0.00
+  URGENT01 destination=D05 status=delivered late_minutes=0.00 penalty=0.00
+Late orders:
+Rejected orders:
+  OVERLOAD01: no feasible insertion found; last constraint failure: pickup would exceed vehicle capacity
+  IMPOSSIBLE01: no feasible insertion found; last constraint failure: time window missed: IMPOSSIBLE01
+Simulation complete: delivered=4 late=0 penalty=0.00 points; finish=10:35 elapsed=155.00 min
+Order simulation CSV exported to: docs/examples/stage5/distance

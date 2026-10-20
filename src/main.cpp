@@ -1,4 +1,5 @@
 #include "logistics/config/ConfigLoader.h"
+#include "logistics/config/OrderConfigLoader.h"
 #include "logistics/planning/Planner.h"
 #include "logistics/visualization/Visualizer.h"
 #include "logistics/simulation/Simulation.h"
@@ -65,6 +66,8 @@ int main(int argc, char* argv[]) {
         bool simulate = false;
         bool simulation_options = false;
         bool explicit_departure = false;
+        bool hard_windows = false;
+        std::optional<std::filesystem::path> scenario_path;
         logistics::SimulationOptions simulation;
         logistics::PlanningRequest request;
         std::optional<std::filesystem::path> export_directory;
@@ -77,6 +80,7 @@ int main(int argc, char* argv[]) {
                              "          [--capacity KG] [--export DIRECTORY]\n"
                              "Simulation: --simulate [--step MINUTES] [--unload-minutes MINUTES]\n"
                              "            [--late-penalty POINTS] [--vehicle-id ID]\n"
+                             "            [--hard-windows | --scenario ORDER_JSON]\n"
                              "Simulation defaults: start 480 (08:00), step 5, unload 2, capacity 1000,\n"
                              "fixed penalty 10 points per late order. Use --departure to change start.\n"
                              "Default: print adjacency list. Planning defaults to the first warehouse\n"
@@ -114,6 +118,13 @@ int main(int argc, char* argv[]) {
             } else if (argument == "--simulate") {
                 simulate = true;
                 planning_options = true;
+            } else if (argument == "--hard-windows") {
+                hard_windows = true;
+                simulation_options = true;
+            } else if (argument == "--scenario" && index + 1 < argc) {
+                scenario_path = std::filesystem::path(argv[++index]);
+                hard_windows = true;
+                simulation_options = true;
             } else if (argument == "--step" && index + 1 < argc) {
                 simulation.step_minutes = parse_number(argv[++index], argument);
                 simulation_options = true;
@@ -149,7 +160,7 @@ int main(int argc, char* argv[]) {
             path = std::filesystem::path(argv[0]).parent_path() / "config" / "network.json";
         }
         const auto graph = logistics::ConfigLoader::load_network(path, check_size);
-        std::cout << "Logistics Route Planner v0.4.0\n"
+        std::cout << "Logistics Route Planner v0.5.0\n"
                   << "Nodes: " << graph.node_count() << " | Edges: " << graph.edge_count() << '\n'
                   << "Warehouses: " << graph.node_count(logistics::NodeType::Warehouse)
                   << " | Delivery points: " << graph.node_count(logistics::NodeType::DeliveryPoint)
@@ -163,6 +174,45 @@ int main(int argc, char* argv[]) {
                 }
                 if (warehouses.empty()) { throw std::invalid_argument("network has no warehouse"); }
                 request.warehouse_id = *std::min_element(warehouses.begin(), warehouses.end());
+            }
+            if (hard_windows) {
+                logistics::OrderScenario scenario;
+                if (scenario_path) {
+                    if (request.delivery_node_ids) { throw std::invalid_argument("--scenario cannot be combined with --deliveries"); }
+                    scenario = logistics::OrderConfigLoader::load(*scenario_path);
+                } else {
+                    const auto basic = logistics::Planner::plan(graph, request);
+                    if (basic.status != logistics::PlanStatus::Feasible) { throw std::invalid_argument(basic.diagnostic); }
+                    for (const auto& id : basic.requested_delivery_node_ids) {
+                        const auto* node = graph.find_node(id);
+                        scenario.initial_orders.emplace_back("order:" + id, request.warehouse_id, id, node->demand(), node->time_window());
+                    }
+                }
+                for (const auto& order : scenario.dynamic_orders) {
+                    if (order.release_time() < request.departure_time) { throw std::invalid_argument("dynamic order release precedes simulation start"); }
+                }
+                logistics::Simulation run(graph, request.warehouse_id, scenario.initial_orders, request.departure_time, simulation, request.strategy);
+                std::size_t next_order = 0;
+                while (!run.finished() || next_order < scenario.dynamic_orders.size()) {
+                    if (next_order < scenario.dynamic_orders.size() && scenario.dynamic_orders[next_order].release_time() <= run.clock().now()) {
+                        run.insert_order(scenario.dynamic_orders[next_order++]);
+                        continue;
+                    }
+                    if (run.finished()) { run.wait_until(scenario.dynamic_orders[next_order].release_time()); }
+                    else {
+                        double delta = simulation.step_minutes;
+                        if (next_order < scenario.dynamic_orders.size()) {
+                            delta = std::min(delta, scenario.dynamic_orders[next_order].release_time() - run.clock().now());
+                        }
+                        run.advance(delta);
+                    }
+                }
+                run.write_log(std::cout);
+                if (export_directory) {
+                    run.export_csv(*export_directory);
+                    std::cout << "Order simulation CSV exported to: " << export_directory->u8string() << '\n';
+                }
+                return 0;
             }
             const auto plan = logistics::Planner::plan(graph, request);
             if (plan.status != logistics::PlanStatus::Feasible) {

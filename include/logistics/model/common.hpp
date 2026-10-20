@@ -1,4 +1,5 @@
 #pragma once
+#include "logistics/model/TimeWindow.h"
 #include <string>
 
 namespace logistics {
@@ -11,10 +12,6 @@ enum class TrafficStatus { Clear, Congested, Closed };
 enum class OrderPriority { Normal, Urgent };
 enum class OrderStatus { Pending, Scheduled, Delivered, Late, NeedsAttention };
 enum class WeightMetric { Distance, Time, Cost };
-struct TimeWindow {
-    Minutes earliest{0.0};
-    Minutes latest{0.0};
-};
 const char* to_string(NodeType type);
 const char* to_string(TrafficStatus status);
 }  // namespace logistics

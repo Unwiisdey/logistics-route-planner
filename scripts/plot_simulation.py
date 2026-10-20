@@ -10,12 +10,14 @@ from plot_network import load_data, number, read_table
 
 
 def load_simulation(directory):
-    data = load_data(directory)
     frames = read_table(directory, "simulation.csv", [
         "time", "clock", "status", "node_id", "edge_id", "from_id", "to_id", "remaining_minutes",
         "progress", "x", "y", "load", "completed_edges", "delivered_count", "late_count", "penalty_points", "finished"])
     if not frames:
         raise ValueError("simulation has no frames")
+    if any(int(frame.get("route_revision", 0)) != 0 for frame in frames):
+        raise ValueError("order-route revisions require route_revisions.csv; this viewer supports stage 4 static routes only")
+    data = load_data(directory)
     previous_time, previous_step = -1, 0
     route = data["route"]
     for frame in frames:

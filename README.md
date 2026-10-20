@@ -4,9 +4,9 @@ C++17 数据结构课程设计项目，使用有向带权图模拟城市配送�
 
 ## 当前进度
 
-当前完成 **第 4 阶段：模拟时钟、车辆位置与配送仿真**。保留距离/成本 Dijkstra 和最近邻路线，新增按时间推进的行驶、早到等待、卸货、载重更新、超时记录与固定处罚。C++ 导出状态和事件，Python 展示车辆位置及路径进度，并支持交互回放和 GIF。
+当前完成 **第 5 阶段：硬时间窗口、动态订单插入与取货载重约束**。新增独立订单模型、订单 JSON、严格初始规划和紧急订单插入。新任务只有在指定仓库取货、全程载重及所有剩余时间窗口均满足时才接受；否则保留原任务和路线并说明拒绝原因。
 
-当前按用户本阶段要求执行早到等待、迟到继续配送并记录处罚；路线排序仍是最近邻启发式，不保证所有订单按时或全局最优。动态订单、实时路况变化和自动重规划留待后续；可视化读取仿真快照进行回放。
+按本次确认，penalty 继续使用**每个超时订单固定 10 分**（可配置）。严格模式在接受任务前检查窗口，运行中仍保留实际超时记录。旧静态规划和第 4 阶段记录迟到的仿真模式继续可用。实时路况触发的重规划属于后续范围。
 
 | 功能 | 状态 |
 | --- | --- |
@@ -19,10 +19,12 @@ C++17 数据结构课程设计项目，使用有向带权图模拟城市配送�
 | CSV 导出、Python 网络与路线图、演示图片和输出 | 已完成 |
 | SimClock、Vehicle、Simulation、等待/卸货与固定超时处罚 | 已完成 |
 | 车辆坐标、事件日志、路径进度着色与交互/GIF 回放 | 已完成 |
-| 51 项 CTest 测试、13 项 Python 数据检查 | 已通过 |
-| 动态订单、实时路况事件与自动重规划 | 后续阶段 |
+| TimeWindow / Order / DynamicOrder、同点多单、订单 JSON | 已完成 |
+| 硬窗口规划、仓库取货、动态插入、全程载重与路线版本 | 已完成 |
+| 69 项 CTest 测试、14 项 Python 数据检查 | 已通过 |
+| 实时路况事件及其自动重规划、动态路线图形回放 | 后续阶段 |
 
-节点保存默认需求量和可选时间窗口。本阶段将每个选定配送点映射为一笔 `order:<节点ID>` 任务，初始一次装载所有货物；仿真会检查载重。独立订单/车辆 JSON 和动态订单接入尚未实现，车辆及仿真参数通过命令行配置。
+`config/network.json` 保存节点默认信息；`config/orders.json` 保存实际订单数量、窗口、取货仓库和发布时间。同一配送点可有多笔独立订单，按订单 ID 跟踪；不会将途经节点自动算作已交付订单。车辆和时钟参数仍通过命令行配置。
 
 ## 目录结构
 
@@ -32,10 +34,13 @@ C++17 数据结构课程设计项目，使用有向带权图模拟城市配送�
 ├── README.md
 ├── config/
 │   ├── network.json                 # 可运行演示网络
+│   ├── orders.json                  # 初始订单与动态订单演示
 │   └── README.md                    # JSON 字段、单位和约束
 ├── include/logistics/
 │   ├── model/
-│   │   ├── common.hpp               # ID、枚举、TimeWindow
+│   │   ├── common.hpp               # ID、枚举及公共类型入口
+│   │   ├── TimeWindow.h             # 等待、截止边界和固定处罚
+│   │   ├── Order.h                  # 独立订单值对象
 │   │   ├── Node.h                   # 节点值对象
 │   │   ├── Edge.h                   # 道路值对象
 │   │   ├── Vehicle.h                # 车辆载重、节点/道路位置与状态
@@ -43,10 +48,12 @@ C++17 数据结构课程设计项目，使用有向带权图模拟城市配送�
 │   ├── graph/Graph.h                # 图操作与矩阵快照
 │   ├── graph/graph.hpp              # 兼容第 1 阶段包含路径
 │   ├── config/ConfigLoader.h        # 文件/流加载器
+│   ├── config/OrderConfigLoader.h   # 初始/动态订单加载器
 │   ├── config/configuration.hpp     # 后续完整仿真配置原型
 │   ├── detail/checked_math.hpp      # 路线总量的有限数值检查
 │   ├── planning/Dijkstra.h          # 单源最短路径及重建结果
 │   ├── planning/Planner.h           # 最近邻单车辆规划请求
+│   ├── planning/DynamicOrder.h      # 硬约束候选评估与取送插入
 │   ├── planning/route_plan.hpp      # 完整道路与配送停靠序列
 │   ├── simulation/SimClock.h        # 可配置时间与步长
 │   ├── simulation/Simulation.h      # 事件推进、配送记录与快照
@@ -59,12 +66,17 @@ C++17 数据结构课程设计项目，使用有向带权图模拟城市配送�
 │   ├── model/Node.cpp
 │   ├── model/Edge.cpp
 │   ├── model/Vehicle.cpp
+│   ├── model/TimeWindow.cpp
+│   ├── model/Order.cpp
 │   ├── graph/Graph.cpp
 │   ├── config/ConfigLoader.cpp
+│   ├── config/OrderConfigLoader.cpp
 │   ├── planning/Dijkstra.cpp
 │   ├── planning/Planner.cpp
+│   ├── planning/DynamicOrder.cpp
 │   ├── simulation/SimClock.cpp
 │   ├── simulation/Simulation.cpp
+│   ├── simulation/SimulationOrders.cpp # 接单、承诺边界与路线切换
 │   └── visualization/Visualizer.cpp
 ├── scripts/plot_network.py          # 使用 matplotlib 绘图
 ├── scripts/plot_simulation.py       # 车辆位置、进度着色与回放
@@ -112,7 +124,7 @@ Push-Location build
 Pop-Location
 ```
 
-已在 Windows、MSVC 19.29、Visual Studio 2019 Build Tools、x64 Debug 下完成编译，并通过全部 51 项 CTest 测试；另外通过 13 项 Python 数据检查。其他 C++ 工具链尚未实际验证。测试内容见 [测试说明](tests/README.md)。
+已在 Windows、MSVC 19.29、Visual Studio 2019 Build Tools、x64 Debug 下完成编译，并通过全部 69 项 CTest 测试；另外通过 14 项 Python 数据检查。其他 C++ 工具链尚未实际验证。测试内容见 [测试说明](tests/README.md)。
 
 Python 数据检查不需要安装 matplotlib：
 
@@ -120,7 +132,40 @@ Python 数据检查不需要安装 matplotlib：
 python -m unittest discover -s tests -p "test_plot*.py" -v
 ```
 
-## 配送仿真：第 4 阶段
+## 硬约束与动态订单：第 5 阶段
+
+在项目根目录运行：
+
+```powershell
+.\build\Debug\logistics_app.exe --plan distance --simulate --scenario config/orders.json --warehouse W01 --departure 480 --capacity 100 --step 5 --late-penalty 10 --export exports/stage5
+```
+
+`--scenario` 自动启用严格模式，使用独立订单，不与 `--deliveries` 合用。将 `distance` 改为 `cost` 可按道路成本评估路径；时限校验始终使用实际耗时。也可不提供订单文件，用节点默认需求及窗口生成初始订单：
+
+```powershell
+.\build\Debug\logistics_app.exe --plan distance --simulate --hard-windows --deliveries D01,D02 --capacity 100
+```
+
+主要规则：
+
+- **硬窗口**：在候选计划中考虑行驶、等待和每单卸货时间；所有剩余订单必须在截止时间内开始卸货。初始规划找不到可行排序则报错，动态插入不可行则拒绝。运行中若实际迟到，仍单独记录迟到分钟数及每单固定处罚；不会按迟到时长乘罚分。
+- **真实取货**：初始订单在出发仓库装车；动态订单的货物位于其 `warehouse_id`，必须实际驶往该仓库后装载，装载耗时暂为 0。接单时不增加载荷，卸货完成后才扣载荷。允许先配送旧货腾出空间，再回仓取新货，不要求所有动态货物同时装车。
+- **紧急优先**：固定旧任务剩余动作的相对顺序，枚举新订单“取货在前、送货在后”的插入位置，逐个检查完整剩余路线。对紧急新订单优先选择其开始卸货最早的可行方案，再比较距离/成本。不会牺牲其他已接受订单的截止时间。
+- **在途衔接**：正在行驶时走完当前道路再切换；已进入等待/卸货时先完成该订单服务。新路线从该节点、该预测时刻和预测剩余载荷开始，不会瞬移回仓。衔接前连续接单会重新检查全部已接受任务。
+- **订单身份**：支持同点多单，逐单检查窗口和卸货。所有已接受 ID（包括已完成）不可重复；仅经过配送点不代表交付。取货仓库可以不同，最终返回本车出发仓库。
+- **简化中转子网络**：把子网络展开为全局唯一节点和有向边，经中转站连接即可；当前无分级车队调度、中转卸货交接或真实嵌套图对象。
+
+窗口判定延续“开始卸货”口径，恰好截止为按时；分钟与 kg 的比较采用 `1e-9` 级数值容差处理小数舍入，非业务宽限时间或超载额度。算法是插入启发式，两点仍使用 Dijkstra；“未找到可行插入”不证明所有访问顺序或其他两点路径均不可行。
+
+示例包含 3 笔初始订单，08:02 接受一笔要求 1 小时内送达的紧急订单；08:03 的超载订单和 08:04 的过紧时限订单被拒绝。最终完成 4 单、超时 0 单、处罚 0 分。详见 [第 5 阶段输出与复现](docs/examples/stage5/README.md)，配置字段见 [配置说明](config/README.md)。
+
+导出文件包括 `deliveries.csv`（订单完成及取货记录）、`insertions.csv`（接受/拒绝原因与候选新路径）、`route_revisions.csv`（每个生效版本的真实道路节点）、`route_stops.csv`（取送动作、预计时刻和载荷），以及状态、事件、参数 CSV。状态通过 `route_revision` 对应正确版本，避免用新路线解释旧位置；衔接前的候选路线在插入记录中保留。
+
+本阶段以文本和 CSV 展示动态新路线。第 4 阶段 Python 绘图器继续支持旧固定路线，遇到订单路线版本时会明确拒绝，避免错误高亮；动态版本图形回放留待后续可视化迭代。
+
+C++ API：`Simulation(graph, warehouse, orders, start, options)` 创建严格仿真；`insert_order(order)` 返回接单结果；`DynamicOrder::urgent(..., received_at, 60)` 创建一小时截止的紧急单。`advance()` 推进、`snapshot()` 读取车辆、`route_revisions()` 读取生效路线。已返仓时可 `wait_until(time)` 等待之后发布的订单；仿真中途应使用 `advance()`。
+
+## 配送仿真：第 4 阶段兼容模式
 
 在项目根目录执行（先按上节完成编译）：
 
@@ -166,7 +211,7 @@ python scripts/plot_simulation.py --input-dir exports/simulation --show
 
 默认示例：500 kg 货物、25 个配送点、08:00 出发，13:21 返仓；行驶 202 分钟、等待 69 分钟、卸货 50 分钟。D20 迟到 17 分钟、D25 迟到 1 分钟，各处罚 10 分，合计 20 分。见 [完整日志、快照和动画](docs/examples/stage4/README.md)。
 
-仿真持有图和路线快照，外部修改不会悄悄改变在途行程。`snapshot()`、`remaining_deliveries()` 与已有规划起点接口供后续接入动态订单和重规划；本阶段不实现中途替换路线或交通事件。
+仿真持有图快照，外部修改不会悄悄改变在途行程。第 4 阶段兼容模式执行固定路线；第 5 阶段可通过订单接口衔接新路线，交通事件仍未实现。
 
 ## 静态路径规划与可视化（保留第 3 阶段模式）
 
@@ -247,7 +292,7 @@ Linux/macOS 使用 `.venv/bin/python` 和 `./build/logistics_app`，其余参数
 摘要示例：
 
 ```text
-Logistics Route Planner v0.4.0
+Logistics Route Planner v0.5.0
 Nodes: 30 | Edges: 98
 Warehouses: 2 | Delivery points: 25 | Transfer stations: 3
 Course size requirements: PASS
@@ -289,8 +334,8 @@ int main() {
 1. 初始化、需求与骨架：已完成。
 2. 图操作、JSON 配置、规模达标数据及测试：已完成。
 3. Dijkstra、两种策略、最近邻配送顺序、可选载重检查、CSV 与绘图：已完成。
-4. 按本次范围完成时钟、车辆、逐步仿真、等待/卸货、固定处罚和车辆回放；独立订单/车辆 JSON 与动态紧急订单留待后续单独迭代。
-5. 路况模拟、拥堵阈值触发、剩余路线重规划与高亮同步。
-6. 优化、整体验证、最终文档和展示答问。
+4. 时钟、车辆、逐步仿真、等待/卸货、固定处罚和固定路线车辆回放：已完成。
+5. 按最新要求完成硬窗口、独立订单 JSON、动态取送插入、载重和路线衔接。
+6. 后续：实时路况、拥堵触发重规划、动态路线可视化、优化及整体验证和展示。
 
-当前采用最近邻启发式，不追求全局最优。本阶段已按用户选择确定固定处罚规则；后续动态订单仍需明确取货来源及在途重规划衔接规则，详见需求文档。仓库公开但项目自身尚未指定开源许可证；第三方库按其随附许可证使用。
+静态模式使用最近邻，订单模式使用插入启发式，均不承诺全局最优。取货来源、固定处罚和在途衔接规则已明确；实时路况事件的阈值与在途封路规则尚待后续确定。仓库公开但项目自身尚未指定开源许可证；第三方库按其随附许可证使用。

@@ -35,13 +35,13 @@ std::ofstream open_csv(const std::filesystem::path& file) {
     return stream;
 }
 void state_header(std::ostream& out) {
-    out << "time,clock,status,node_id,edge_id,from_id,to_id,remaining_minutes,progress,x,y,load,completed_edges,delivered_count,late_count,penalty_points,finished";
+    out << "time,clock,status,node_id,edge_id,from_id,to_id,remaining_minutes,progress,x,y,load,completed_edges,delivered_count,late_count,penalty_points,finished,route_revision";
 }
 void state_row(std::ostream& out, const SimulationSnapshot& s) {
     out << s.time << ',' << csv(SimClock::format(s.time)) << ',' << to_string(s.status) << ','
         << csv(s.node_id.value_or("")) << ',' << csv(s.edge_id.value_or("")) << ',' << csv(s.from_id) << ',' << csv(s.to_id)
         << ',' << s.remaining_minutes << ',' << s.progress << ',' << s.x << ',' << s.y << ',' << s.load
-        << ',' << s.completed_edges << ',' << s.delivered_count << ',' << s.late_count << ',' << s.penalty_points << ',' << s.finished;
+        << ',' << s.completed_edges << ',' << s.delivered_count << ',' << s.late_count << ',' << s.penalty_points << ',' << s.finished << ',' << s.route_revision;
 }
 }  // namespace
 
@@ -68,6 +68,9 @@ Simulation::Simulation(Graph graph, RoutePlan route, SimulationOptions options)
         delivery.node_id = node->id();
         delivery.quantity = node->demand();
         delivery.window = node->time_window();
+        delivery.warehouse_id = route_.warehouse_id;
+        delivery.picked_up_at = clock_.now();
+        orders_.emplace_back(delivery.order_id, route_.warehouse_id, node->id(), node->demand(), node->time_window());
         delivery_steps_.emplace(stop.route_node_index, deliveries_.size());
         deliveries_.push_back(std::move(delivery));
     }
@@ -81,6 +84,34 @@ void Simulation::record(const std::string& kind, const std::string& detail) {
     events_.push_back({snapshot(), kind, detail});
 }
 void Simulation::enter_node() {
+    if (order_mode_) {
+        while (!order_actions_.empty() && order_actions_.front().first == route_index_) {
+            const auto action = order_actions_.front().second;
+            order_actions_.pop_front();
+            const auto index = order_index(action.order_id);
+            auto& task = deliveries_[index];
+            if (action.kind == OrderActionKind::Pickup) {
+                if (task.loaded || task.delivered_at || task.warehouse_id != *vehicle_.position().node_id) {
+                    throw std::logic_error("invalid runtime pickup");
+                }
+                vehicle_.load(task.quantity);
+                task.loaded = true; task.picked_up_at = clock_.now();
+                record("pickup", task.order_id);
+                continue;
+            }
+            if (!task.loaded || task.delivered_at) { throw std::logic_error("runtime delivery without cargo"); }
+            active_delivery_ = index;
+            task.arrival = clock_.now();
+            if (task.window && clock_.now() < task.window->earliest) {
+                vehicle_.status_ = VehicleStatus::Waiting;
+                phase_end_ = task.window->earliest;
+                record("wait", task.order_id);
+            } else { begin_unloading(); }
+            return;
+        }
+        leave_node();
+        return;
+    }
     const auto delivery = delivery_steps_.find(route_index_);
     if (delivery == delivery_steps_.end()) { leave_node(); return; }
     active_delivery_ = delivery->second;
@@ -95,7 +126,7 @@ void Simulation::enter_node() {
 void Simulation::begin_unloading() {
     auto& task = deliveries_[*active_delivery_];
     task.service_start = clock_.now();
-    task.late_minutes = task.window ? std::max(0.0, clock_.now() - task.window->latest) : 0;
+    task.late_minutes = task.window ? task.window->evaluate(clock_.now()).late_minutes : 0;
     vehicle_.status_ = VehicleStatus::Unloading;
     phase_end_ = detail::checked_sum(clock_.now(), options_.unload_minutes);
     record(task.late_minutes > 0 ? "unload_late" : "unload_on_time", task.order_id);
@@ -119,6 +150,7 @@ void Simulation::finish_phase() {
         vehicle_.arrive();
         ++route_index_;
         record("arrive", road);
+        apply_pending_route();
         enter_node();
     } else if (vehicle_.status() == VehicleStatus::Waiting) {
         begin_unloading();
@@ -127,10 +159,12 @@ void Simulation::finish_phase() {
         task.delivered_at = clock_.now();
         task.penalty_points = task.late_minutes > 0 ? options_.late_penalty_points : 0;
         vehicle_.unload(task.quantity);
+        task.loaded = false;
         vehicle_.status_ = VehicleStatus::Idle;
         record(task.late_minutes > 0 ? "delivered_late" : "delivered_on_time", task.order_id);
         active_delivery_.reset();
-        leave_node();
+        if (apply_pending_route() || order_mode_) { enter_node(); }
+        else { leave_node(); }
     } else { throw std::logic_error("unfinished simulation has no active phase"); }
 }
 void Simulation::settle_instant_events() {
@@ -165,6 +199,7 @@ SimulationSnapshot Simulation::snapshot() const {
     state.load = vehicle_.current_load();
     state.completed_edges = route_index_;
     state.finished = finished_;
+    state.route_revision = revision_;
     state.remaining_minutes = state.status == VehicleStatus::Idle ? 0 : std::max(0.0, phase_end_ - clock_.now());
     if (vehicle_.segment()) {
         state.from_id = vehicle_.segment()->from_id;
@@ -202,17 +237,59 @@ void Simulation::write_log(std::ostream& out) const {
         if (s.node_id) { out << *s.node_id; }
         else { out << s.from_id << "->" << s.to_id << " edge=" << *s.edge_id << " progress=" << s.progress; }
         out << " remaining=" << s.remaining_minutes << " load=" << s.load
-            << " delivered=" << s.delivered_count << " late=" << s.late_count << " penalty=" << s.penalty_points;
+            << " delivered=" << s.delivered_count << " late=" << s.late_count << " penalty=" << s.penalty_points
+            << " revision=" << s.route_revision;
         if (!event.detail.empty()) { out << " detail=" << event.detail; }
         out << '\n';
     }
     const auto s = snapshot();
+    out << "Order results:\n";
+    for (const auto& task : deliveries_) {
+        out << "  " << task.order_id << " destination=" << task.node_id
+            << " status=" << (task.delivered_at ? (task.late_minutes > 0 ? "late" : "delivered") : (task.loaded ? "loaded" : "awaiting_pickup"))
+            << " late_minutes=" << task.late_minutes << " penalty=" << task.penalty_points << '\n';
+    }
+    out << "Late orders:";
+    for (const auto& task : deliveries_) { if (task.delivered_at && task.late_minutes > 0) { out << ' ' << task.order_id; } }
+    out << '\n';
+    out << "Rejected orders:\n";
+    for (const auto& decision : insertions_) {
+        if (!decision.accepted) { out << "  " << decision.order_id << ": " << decision.reason << '\n'; }
+    }
     out << "Simulation " << (finished_ ? "complete" : "in progress") << ": delivered=" << s.delivered_count
         << " late=" << s.late_count << " penalty=" << s.penalty_points << " points; finish=" << SimClock::format(s.time)
         << " elapsed=" << s.time - route_.departure_time << " min\n";
 }
 void Simulation::export_csv(const std::filesystem::path& directory) const {
-    Visualizer::export_csv(graph_, route_, directory);
+    if (!order_mode_) { Visualizer::export_csv(graph_, route_, directory); }
+    else {
+        std::filesystem::create_directories(directory);
+        auto revisions = open_csv(directory / "route_revisions.csv");
+        auto stops = open_csv(directory / "route_stops.csv");
+        revisions << "revision,start_minutes,step,node_id,incoming_edge_id\n";
+        stops << "revision,stop_index,order_id,action,route_step,arrival,service_start,departure,load_after\n";
+        for (const auto& revision : revisions_) {
+            for (std::size_t step = 0; step < revision.route.nodes.size(); ++step) {
+                revisions << revision.id << ',' << revision.route.start_time << ',' << step << ','
+                          << csv(revision.route.nodes[step]) << ',' << csv(step ? revision.route.roads[step - 1] : "") << '\n';
+            }
+            for (std::size_t index = 0; index < revision.route.stops.size(); ++index) {
+                const auto& stop = revision.route.stops[index];
+                stops << revision.id << ',' << index << ',' << csv(stop.action.order_id) << ','
+                      << (stop.action.kind == OrderActionKind::Pickup ? "pickup" : "delivery") << ',' << stop.node_index
+                      << ',' << stop.arrival << ',' << stop.service_start << ',' << stop.departure << ',' << stop.load_after << '\n';
+            }
+        }
+        auto decisions = open_csv(directory / "insertions.csv");
+        decisions << "time,order_id,accepted,anchor_time,reason,proposed_path\n";
+        for (const auto& decision : insertions_) {
+            std::string path;
+            for (const auto& node : decision.new_path) { if (!path.empty()) { path += " -> "; } path += node; }
+            decisions << decision.time << ',' << csv(decision.order_id) << ',' << decision.accepted << ','
+                      << decision.anchor_time << ',' << csv(decision.reason) << ',' << csv(path) << '\n';
+        }
+        revisions.flush(); stops.flush(); decisions.flush();
+    }
     auto settings = open_csv(directory / "simulation_options.csv");
     settings << "vehicle_id,capacity_kg,start_minutes,step_minutes,unload_minutes,fixed_late_penalty\n"
              << csv(vehicle_.id()) << ',' << vehicle_.capacity() << ',' << route_.departure_time << ',' << clock_.step()
@@ -224,7 +301,7 @@ void Simulation::export_csv(const std::filesystem::path& directory) const {
     state_header(events); events << ",event,detail\n";
     for (const auto& event : events_) { state_row(events, event.state); events << ',' << csv(event.kind) << ',' << csv(event.detail) << '\n'; }
     auto deliveries = open_csv(directory / "deliveries.csv");
-    deliveries << "order_id,node_id,quantity,earliest,latest,arrival,service_start,delivered_at,late_minutes,penalty_points,status\n";
+    deliveries << "order_id,node_id,quantity,earliest,latest,arrival,service_start,delivered_at,late_minutes,penalty_points,status,warehouse_id,priority,picked_up_at\n";
     for (const auto& task : deliveries_) {
         deliveries << csv(task.order_id) << ',' << csv(task.node_id) << ',' << task.quantity << ',';
         if (task.window) { deliveries << task.window->earliest; } deliveries << ',';
@@ -233,7 +310,10 @@ void Simulation::export_csv(const std::filesystem::path& directory) const {
         if (task.service_start) { deliveries << *task.service_start; } deliveries << ',';
         if (task.delivered_at) { deliveries << *task.delivered_at; }
         deliveries << ',' << task.late_minutes << ',' << task.penalty_points << ','
-                   << (task.delivered_at ? (task.late_minutes > 0 ? "late" : "delivered") : "pending") << '\n';
+                   << (task.delivered_at ? (task.late_minutes > 0 ? "late" : "delivered") : "pending")
+                   << ',' << csv(task.warehouse_id) << ',' << (task.priority == OrderPriority::Urgent ? "urgent" : "normal") << ',';
+        if (task.picked_up_at) { deliveries << *task.picked_up_at; }
+        deliveries << '\n';
     }
     states.flush(); events.flush(); deliveries.flush(); settings.flush();
 }

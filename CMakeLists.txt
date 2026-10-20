@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.16)
 
-project(LogisticsRoutePlanner VERSION 0.4.0 LANGUAGES CXX)
+project(LogisticsRoutePlanner VERSION 0.5.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -10,13 +10,18 @@ add_library(logistics_core STATIC
     src/model/Node.cpp
     src/model/Edge.cpp
     src/model/Vehicle.cpp
+    src/model/TimeWindow.cpp
+    src/model/Order.cpp
     src/graph/Graph.cpp
     src/config/ConfigLoader.cpp
+    src/config/OrderConfigLoader.cpp
     src/planning/Dijkstra.cpp
     src/planning/Planner.cpp
+    src/planning/DynamicOrder.cpp
     src/visualization/Visualizer.cpp
     src/simulation/SimClock.cpp
     src/simulation/Simulation.cpp
+    src/simulation/SimulationOrders.cpp
 )
 target_include_directories(logistics_core PUBLIC
     "${CMAKE_CURRENT_SOURCE_DIR}/include"
@@ -39,13 +44,17 @@ logistics_warnings(logistics_app)
 
 # Works from the build directory and beside the executable, without source-tree paths.
 configure_file(config/network.json config/network.json COPYONLY)
+configure_file(config/orders.json config/orders.json COPYONLY)
 # Run even when only JSON changed and the executable does not need relinking.
 add_custom_target(copy_network_config ALL
     COMMAND ${CMAKE_COMMAND} -E make_directory "$<TARGET_FILE_DIR:logistics_app>/config"
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
         "${CMAKE_CURRENT_SOURCE_DIR}/config/network.json"
         "$<TARGET_FILE_DIR:logistics_app>/config/network.json"
-    DEPENDS logistics_app "${CMAKE_CURRENT_SOURCE_DIR}/config/network.json"
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        "${CMAKE_CURRENT_SOURCE_DIR}/config/orders.json"
+        "$<TARGET_FILE_DIR:logistics_app>/config/orders.json"
+    DEPENDS logistics_app "${CMAKE_CURRENT_SOURCE_DIR}/config/network.json" "${CMAKE_CURRENT_SOURCE_DIR}/config/orders.json"
 )
 
 include(CTest)

@@ -58,3 +58,20 @@ add_test(NAME app.invalid_step COMMAND logistics_app --plan distance --simulate 
 set_tests_properties(app.invalid_step PROPERTIES WILL_FAIL TRUE)
 add_test(NAME app.simulation_option_without_mode COMMAND logistics_app --plan distance --step 5)
 set_tests_properties(app.simulation_option_without_mode PROPERTIES WILL_FAIL TRUE)
+
+add_executable(order_tests order_tests.cpp)
+target_link_libraries(order_tests PRIVATE logistics_core)
+logistics_warnings(order_tests)
+foreach(case windows order_values strict_initial urgent_priority capacity_after_unload preserve_existing_windows
+             moving_insertion locked_service multiple_pending atomic_rejection idle_restart legacy_upgrade
+             step_consistency scenario_config revision_export)
+    add_test(NAME orders.${case} COMMAND order_tests ${case})
+    set_tests_properties(orders.${case} PROPERTIES WORKING_DIRECTORY "${PROJECT_BINARY_DIR}")
+endforeach()
+add_test(NAME app.order_scenario COMMAND logistics_app --plan distance --simulate
+    --scenario "${PROJECT_SOURCE_DIR}/config/orders.json" --capacity 100 --export test_artifacts/order_cli)
+set_tests_properties(app.order_scenario PROPERTIES PASS_REGULAR_EXPRESSION "Simulation complete: delivered=4 late=0")
+add_test(NAME app.hard_windows COMMAND logistics_app --plan distance --simulate --hard-windows --deliveries D01,D02)
+set_tests_properties(app.hard_windows PROPERTIES PASS_REGULAR_EXPRESSION "Simulation complete: delivered=2 late=0")
+add_test(NAME app.scenario_without_simulation COMMAND logistics_app --plan distance --scenario missing.json)
+set_tests_properties(app.scenario_without_simulation PROPERTIES WILL_FAIL TRUE)

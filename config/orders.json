@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "initial_orders": [
+    {"id": "O01", "warehouse_id": "W01", "delivery_node_id": "D03", "quantity": 20, "time_window": {"earliest": 480, "latest": 900}},
+    {"id": "O02", "warehouse_id": "W01", "delivery_node_id": "D12", "quantity": 20, "time_window": {"earliest": 480, "latest": 900}},
+    {"id": "O03", "warehouse_id": "W01", "delivery_node_id": "D21", "quantity": 20, "time_window": {"earliest": 480, "latest": 900}}
+  ],
+  "dynamic_orders": [
+    {"id": "URGENT01", "warehouse_id": "W01", "delivery_node_id": "D05", "quantity": 15, "time_window": {"earliest": 482, "latest": 542}, "release_time": 482, "priority": "urgent"},
+    {"id": "OVERLOAD01", "warehouse_id": "W01", "delivery_node_id": "D02", "quantity": 2000, "time_window": {"earliest": 483, "latest": 800}, "release_time": 483, "priority": "urgent"},
+    {"id": "IMPOSSIBLE01", "warehouse_id": "W01", "delivery_node_id": "D25", "quantity": 5, "time_window": {"earliest": 484, "latest": 485}, "release_time": 484, "priority": "urgent"}
+  ]
+}

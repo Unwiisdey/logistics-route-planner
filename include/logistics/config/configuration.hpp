@@ -7,8 +7,8 @@
 
 namespace logistics {
 
-// Future full simulation configuration. Stage 2 ConfigLoader loads Graph only;
-// vehicle and order parsing are deferred to the next stages.
+// Future unified configuration. Network and order loaders currently remain separate;
+// vehicle and clock options are supplied by the application.
 struct Configuration {
     Graph graph;
     std::optional<Vehicle> vehicle;

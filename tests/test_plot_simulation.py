@@ -60,5 +60,9 @@ class SimulationPlotTests(unittest.TestCase):
         self.rows[0]["progress"] = "nan"
         with self.assertRaisesRegex(ValueError, "finite"): self.load()
 
+    def test_revised_routes_not_misread_as_static(self):
+        self.rows[0]["route_revision"] = 2
+        with self.assertRaisesRegex(ValueError, "order-route revisions"): self.load()
+
 
 if __name__ == "__main__": unittest.main()

@@ -30,12 +30,14 @@ public:
     const VehiclePosition& position() const noexcept { return position_; }
     VehicleStatus status() const noexcept { return status_; }
     const std::optional<TravelSegment>& segment() const noexcept { return segment_; }
+    bool can_load(double quantity) const noexcept;
 private:
     friend class Simulation;
     void depart(const RoadId& road, const NodeId& from, const NodeId& to, Minutes duration);
     void update_remaining(Minutes remaining);
     void arrive();
     void unload(double quantity);
+    void load(double quantity);
     std::string id_;
     double capacity_;
     double load_;
