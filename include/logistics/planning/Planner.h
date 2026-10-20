@@ -19,9 +19,18 @@ struct PlanningRequest {
     std::optional<double> capacity_kg;
 };
 
+struct RouteTiming {
+    std::vector<Minutes> arrivals;    // One entry per road endpoint, including repeated nodes.
+    std::vector<Minutes> departures;  // Includes waiting and unloading at delivery stops.
+    Minutes total_wait_minutes{0.0};
+    Minutes total_unload_minutes{0.0};
+};
+
 class Planner {
 public:
     static RoutePlan plan(const Graph& graph, const PlanningRequest& request);
+    // Evaluate a fixed route against windows; does not claim a window-feasible ordering.
+    static RouteTiming schedule(const Graph& graph, const RoutePlan& plan, Minutes unload_minutes);
 };
 
 }  // namespace logistics

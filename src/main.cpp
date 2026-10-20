@@ -1,6 +1,7 @@
 #include "logistics/config/ConfigLoader.h"
 #include "logistics/planning/Planner.h"
 #include "logistics/visualization/Visualizer.h"
+#include "logistics/simulation/Simulation.h"
 #include <algorithm>
 #include <filesystem>
 #include <iomanip>
@@ -48,7 +49,7 @@ void print_plan(const logistics::RoutePlan& plan) {
     std::cout << std::fixed << std::setprecision(2)
               << "\nTotal distance: " << plan.total_distance_km << " km\nTotal travel time: "
               << plan.total_travel_minutes << " min\nTotal cost: " << plan.total_cost_yuan << " CNY\n"
-              << "Heuristic tour; time windows and global tour optimality are not enforced.\n";
+              << "Static route estimate excludes waiting/unloading; visit order is heuristic.\n";
 }
 }  // namespace
 
@@ -61,6 +62,10 @@ int main(int argc, char* argv[]) {
         std::optional<logistics::WeightMetric> matrix;
         bool plan_enabled = false;
         bool planning_options = false;
+        bool simulate = false;
+        bool simulation_options = false;
+        bool explicit_departure = false;
+        logistics::SimulationOptions simulation;
         logistics::PlanningRequest request;
         std::optional<std::filesystem::path> export_directory;
         for (int index = 1; index < argc; ++index) {
@@ -70,6 +75,10 @@ int main(int argc, char* argv[]) {
                              "  [--summary | --matrix distance|time|cost | --plan distance|cost]\n"
                              "Planning: [--warehouse ID] [--deliveries ID,ID,...] [--departure MINUTES]\n"
                              "          [--capacity KG] [--export DIRECTORY]\n"
+                             "Simulation: --simulate [--step MINUTES] [--unload-minutes MINUTES]\n"
+                             "            [--late-penalty POINTS] [--vehicle-id ID]\n"
+                             "Simulation defaults: start 480 (08:00), step 5, unload 2, capacity 1000,\n"
+                             "fixed penalty 10 points per late order. Use --departure to change start.\n"
                              "Default: print adjacency list. Planning defaults to the first warehouse\n"
                              "by ID and all delivery points. Capacity is checked only when provided.\n";
                 return 0;
@@ -100,7 +109,23 @@ int main(int argc, char* argv[]) {
                 planning_options = true;
             } else if (argument == "--departure" && index + 1 < argc) {
                 request.departure_time = parse_number(argv[++index], argument);
+                explicit_departure = true;
                 planning_options = true;
+            } else if (argument == "--simulate") {
+                simulate = true;
+                planning_options = true;
+            } else if (argument == "--step" && index + 1 < argc) {
+                simulation.step_minutes = parse_number(argv[++index], argument);
+                simulation_options = true;
+            } else if (argument == "--unload-minutes" && index + 1 < argc) {
+                simulation.unload_minutes = parse_number(argv[++index], argument);
+                simulation_options = true;
+            } else if (argument == "--late-penalty" && index + 1 < argc) {
+                simulation.late_penalty_points = parse_number(argv[++index], argument);
+                simulation_options = true;
+            } else if (argument == "--vehicle-id" && index + 1 < argc) {
+                simulation.vehicle_id = argv[++index];
+                simulation_options = true;
             } else if (argument == "--capacity" && index + 1 < argc) {
                 request.capacity_kg = parse_number(argv[++index], argument);
                 planning_options = true;
@@ -114,11 +139,17 @@ int main(int argc, char* argv[]) {
         if (summary_only && matrix) { throw std::invalid_argument("--summary and --matrix cannot be combined"); }
         if (plan_enabled && (summary_only || matrix)) { throw std::invalid_argument("--plan cannot be combined with --summary or --matrix"); }
         if (!plan_enabled && planning_options) { throw std::invalid_argument("planning options require --plan"); }
+        if (!simulate && simulation_options) { throw std::invalid_argument("simulation options require --simulate"); }
+        if (simulate) {
+            if (!explicit_departure) { request.departure_time = 480; }
+            simulation.capacity_kg = request.capacity_kg.value_or(simulation.capacity_kg);
+            request.capacity_kg = simulation.capacity_kg;
+        }
         if (!explicit_path && !std::filesystem::exists(path)) {
             path = std::filesystem::path(argv[0]).parent_path() / "config" / "network.json";
         }
         const auto graph = logistics::ConfigLoader::load_network(path, check_size);
-        std::cout << "Logistics Route Planner v0.3.0\n"
+        std::cout << "Logistics Route Planner v0.4.0\n"
                   << "Nodes: " << graph.node_count() << " | Edges: " << graph.edge_count() << '\n'
                   << "Warehouses: " << graph.node_count(logistics::NodeType::Warehouse)
                   << " | Delivery points: " << graph.node_count(logistics::NodeType::DeliveryPoint)
@@ -139,7 +170,17 @@ int main(int argc, char* argv[]) {
                 return 2;
             }
             print_plan(plan);
-            if (export_directory) {
+            if (simulate) {
+                logistics::Simulation run(graph, plan, simulation);
+                std::cout << "Simulation: fixed penalty=" << simulation.late_penalty_points
+                          << " points/late order; window checked at unloading start.\n";
+                while (!run.finished()) { run.advance(); }
+                run.write_log(std::cout);
+                if (export_directory) {
+                    run.export_csv(*export_directory);
+                    std::cout << "Simulation CSV exported to: " << export_directory->u8string() << '\n';
+                }
+            } else if (export_directory) {
                 logistics::Visualizer::export_csv(graph, plan, *export_directory);
                 std::cout << "CSV exported to: " << export_directory->u8string() << '\n';
             }

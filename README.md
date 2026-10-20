@@ -4,9 +4,9 @@ C++17 数据结构课程设计项目，使用有向带权图模拟城市配送�
 
 ## 当前进度
 
-当前完成 **第 3 阶段：单车辆基础路径规划与简单可视化**。支持按距离或成本运行 Dijkstra，使用贪心最近邻安排配送顺序，从仓库出发、覆盖待配送点并返回仓库；输出真实道路节点序列和三项总量。C++ 导出 CSV，Python 绘制网络和高亮路线。
+当前完成 **第 4 阶段：模拟时钟、车辆位置与配送仿真**。保留距离/成本 Dijkstra 和最近邻路线，新增按时间推进的行驶、早到等待、卸货、载重更新、超时记录与固定处罚。C++ 导出状态和事件，Python 展示车辆位置及路径进度，并支持交互回放和 GIF。
 
-当前仍不执行时间窗口约束、动态订单、模拟时钟或自动路况重规划；可视化采用静态绘图与可选绘图窗口，不是集成式调度 GUI。整体配送访问顺序是启发式结果，不保证巡回路线全局最优。
+当前按用户本阶段要求执行早到等待、迟到继续配送并记录处罚；路线排序仍是最近邻启发式，不保证所有订单按时或全局最优。动态订单、实时路况变化和自动重规划留待后续；可视化读取仿真快照进行回放。
 
 | 功能 | 状态 |
 | --- | --- |
@@ -17,10 +17,12 @@ C++17 数据结构课程设计项目，使用有向带权图模拟城市配送�
 | 示例网络：30 节点、98 有向道路；2 仓库、25 配送点、3 中转站 | 已完成 |
 | Dijkstra 距离/成本策略、最近邻完整配送行程 | 已完成 |
 | CSV 导出、Python 网络与路线图、演示图片和输出 | 已完成 |
-| 37 项 CTest 测试、6 项 Python 数据检查 | 已通过 |
-| 时间约束执行、动态订单、时钟与自动重规划 | 后续阶段 |
+| SimClock、Vehicle、Simulation、等待/卸货与固定超时处罚 | 已完成 |
+| 车辆坐标、事件日志、路径进度着色与交互/GIF 回放 | 已完成 |
+| 51 项 CTest 测试、13 项 Python 数据检查 | 已通过 |
+| 动态订单、实时路况事件与自动重规划 | 后续阶段 |
 
-节点保存默认需求量和可选时间窗口；它们不等于动态订单。规划器当前以配送点集合为任务输入，支持可选载重检查，订单/车辆 JSON 解析与运行状态控制将在后续实现。
+节点保存默认需求量和可选时间窗口。本阶段将每个选定配送点映射为一笔 `order:<节点ID>` 任务，初始一次装载所有货物；仿真会检查载重。独立订单/车辆 JSON 和动态订单接入尚未实现，车辆及仿真参数通过命令行配置。
 
 ## 目录结构
 
@@ -36,6 +38,7 @@ C++17 数据结构课程设计项目，使用有向带权图模拟城市配送�
 │   │   ├── common.hpp               # ID、枚举、TimeWindow
 │   │   ├── Node.h                   # 节点值对象
 │   │   ├── Edge.h                   # 道路值对象
+│   │   ├── Vehicle.h                # 车辆载重、节点/道路位置与状态
 │   │   └── types.hpp                # 订单、车辆及基础类型入口
 │   ├── graph/Graph.h                # 图操作与矩阵快照
 │   ├── graph/graph.hpp              # 兼容第 1 阶段包含路径
@@ -45,7 +48,9 @@ C++17 数据结构课程设计项目，使用有向带权图模拟城市配送�
 │   ├── planning/Dijkstra.h          # 单源最短路径及重建结果
 │   ├── planning/Planner.h           # 最近邻单车辆规划请求
 │   ├── planning/route_plan.hpp      # 完整道路与配送停靠序列
-│   ├── simulation/simulation_state.hpp
+│   ├── simulation/SimClock.h        # 可配置时间与步长
+│   ├── simulation/Simulation.h      # 事件推进、配送记录与快照
+│   ├── simulation/simulation_state.hpp # 兼容的视图快照入口
 │   ├── traffic/traffic_event.hpp
 │   ├── visualization/Visualizer.h  # 网络/路线 CSV 导出
 │   └── visualization/network_view.hpp
@@ -53,14 +58,18 @@ C++17 数据结构课程设计项目，使用有向带权图模拟城市配送�
 │   ├── main.cpp                     # 命令行入口
 │   ├── model/Node.cpp
 │   ├── model/Edge.cpp
+│   ├── model/Vehicle.cpp
 │   ├── graph/Graph.cpp
 │   ├── config/ConfigLoader.cpp
 │   ├── planning/Dijkstra.cpp
 │   ├── planning/Planner.cpp
+│   ├── simulation/SimClock.cpp
+│   ├── simulation/Simulation.cpp
 │   └── visualization/Visualizer.cpp
 ├── scripts/plot_network.py          # 使用 matplotlib 绘图
+├── scripts/plot_simulation.py       # 车辆位置、进度着色与回放
 ├── scripts/requirements.txt         # 可选 Python 依赖
-├── tests/                           # 图、加载器和应用测试
+├── tests/                           # 图、配置、规划、仿真和绘图数据测试
 ├── docs/requirements.md
 ├── docs/examples/                   # 两种策略的 CSV、文本输出和 PNG
 └── third_party/nlohmann/             # JSON 单头文件和 MIT 许可证
@@ -103,15 +112,63 @@ Push-Location build
 Pop-Location
 ```
 
-已在 Windows、MSVC 19.29、Visual Studio 2019 Build Tools、x64 Debug 下完成编译，并通过全部 37 项 CTest 测试；另外通过 6 项 Python 数据检查。其他 C++ 工具链尚未实际验证。测试内容见 [测试说明](tests/README.md)。
+已在 Windows、MSVC 19.29、Visual Studio 2019 Build Tools、x64 Debug 下完成编译，并通过全部 51 项 CTest 测试；另外通过 13 项 Python 数据检查。其他 C++ 工具链尚未实际验证。测试内容见 [测试说明](tests/README.md)。
 
 Python 数据检查不需要安装 matplotlib：
 
 ```sh
-python -m unittest discover -s tests -p test_plot_network.py -v
+python -m unittest discover -s tests -p "test_plot*.py" -v
 ```
 
-## 路径规划与可视化
+## 配送仿真：第 4 阶段
+
+在项目根目录执行（先按上节完成编译）：
+
+```powershell
+.\build\Debug\logistics_app.exe --plan distance --simulate --warehouse W01 --departure 480 --step 5 --capacity 1000 --unload-minutes 2 --late-penalty 10 --export exports/simulation
+```
+
+将 `distance` 改成 `cost` 可仿真成本策略；用 `--deliveries D01,D08,D20` 可选择任务子集。命令行自动推进到返仓结束；C++ 接口可逐次调用 `advance()` 或 `advance(1)`，不调用即暂停。仿真时间不依赖电脑时钟，不会真实等待数小时。
+
+| 参数 | 默认值 | 含义 |
+| --- | --- | --- |
+| `--departure` | 仿真模式 480 | 模拟日开始后的分钟数，即 08:00 |
+| `--step` | 5 | 每次推进分钟数，必须大于 0，可为小数 |
+| `--vehicle-id` | V01 | 车辆 ID |
+| `--capacity` | 仿真模式 1000 | kg，初始装载所有选定任务，不中途补货 |
+| `--unload-minutes` | 2 | 每个配送点的卸货时长，允许 0 |
+| `--late-penalty` | 10 | **每个超时订单固定处罚分**，允许 0，非每分钟费率 |
+
+时间窗口按**开始卸货时刻**判定：`service_start = max(arrival, earliest)`。早到等待；恰好 `latest` 开始卸货视为按时；超过则记录迟到分钟数。即使卸货结束超过截止，只要按时开始便不算迟到。这是本阶段按到达时间判断的明确实现口径。
+
+卸货完成后扣减货物、标记任务完成，并且每个超时任务只记一次固定处罚。处罚分与运输成本分别统计。车辆状态为 idle / driving / waiting / unloading；行驶时 `node_id` 为空，记录真实道路及起终点、剩余时间和进度，不把上一节点当作当前位置。坐标按道路耗时在线性端点间插值，无实际道路几何数据。
+
+`Planner::schedule()` 在既定路径上计算包含等待、卸货的预计到达/离开时间；`Simulation` 按事件时刻执行，步长内可以经历多个到达、等待或卸货事件。1 分钟和 5 分钟步长改变日志采样频率，不改变实际到达和处罚结果。返仓时停止，不补齐最后一个步长；跨天显示 `D+1 00:00`，内部始终保留连续分钟数，小数分钟在 CSV 中保留。
+
+仿真导出保留第 3 阶段的 5 个网络/路线 CSV，另加：
+
+- `simulation.csv`：初始、每步及最终状态，包含车辆坐标与已走道路数量。
+- `events.csv`：精确事件时刻与状态，步长内事件也完整记录。
+- `deliveries.csv`：到达、开始卸货、完成时刻，迟到分钟数与固定处罚。
+- `simulation_options.csv`：车辆、起始时间、步长、卸货时长和处罚参数。
+
+其中 `route.csv` / `stops.csv` 仍是第 3 阶段仅行驶时间的静态估计，**真实仿真时刻以事件和配送记录为准**。
+
+安装绘图依赖的方法见下节。可用 Python 导出一帧、生成 GIF，或打开时间滑块及播放/暂停窗口：
+
+```powershell
+python scripts/plot_simulation.py --input-dir exports/simulation --frame 47 --output exports/vehicle.png
+python scripts/plot_simulation.py --input-dir exports/simulation --gif exports/simulation.gif
+python scripts/plot_simulation.py --input-dir exports/simulation --show
+```
+
+`--frame` 从 0 开始，47 适用于本例默认 5 分钟步长。使用虚拟环境时，将 `python` 换成 `.\.venv\Scripts\python.exe`。图中星形标出车辆；绿色、橙色、蓝色分别表示已走、正在走、未走的道路遍历，同一道路重复经过会分开显示。回放读取已生成数据，尚未连接实时 C++ 进程或在线路况。
+
+默认示例：500 kg 货物、25 个配送点、08:00 出发，13:21 返仓；行驶 202 分钟、等待 69 分钟、卸货 50 分钟。D20 迟到 17 分钟、D25 迟到 1 分钟，各处罚 10 分，合计 20 分。见 [完整日志、快照和动画](docs/examples/stage4/README.md)。
+
+仿真持有图和路线快照，外部修改不会悄悄改变在途行程。`snapshot()`、`remaining_deliveries()` 与已有规划起点接口供后续接入动态订单和重规划；本阶段不实现中途替换路线或交通事件。
+
+## 静态路径规划与可视化（保留第 3 阶段模式）
 
 在项目根目录执行以下命令（Windows / Visual Studio）：
 
@@ -190,7 +247,7 @@ Linux/macOS 使用 `.venv/bin/python` 和 `./build/logistics_app`，其余参数
 摘要示例：
 
 ```text
-Logistics Route Planner v0.3.0
+Logistics Route Planner v0.4.0
 Nodes: 30 | Edges: 98
 Warehouses: 2 | Delivery points: 25 | Transfer stations: 3
 Course size requirements: PASS
@@ -224,7 +281,7 @@ int main() {
 - 查询使用只读的 nodes()、find_node()、find_edge()、find_edge_by_id() 和 outgoing_edges()；找不到对象的 find_* 返回空指针，查询不存在节点的出边抛出 std::out_of_range。调用图修改操作后应重新获取查询引用，不跨修改保存指针。
 - 邻接表和矩阵都按节点 ID 排序，输出可重复。矩阵行是起点、列是终点；对角线为 0，无直接边为 INF（内部 std::nullopt），存在的零权重边为 0.00。它是直接边权矩阵，不是最短路径结果。
 - 结构输出保留 closed 道路，列表显示状态；Dijkstra 已实现跳过关闭道路。数值输出保留两位小数，内存权重保持完整 double 精度。
-- Edge::weight() 统一三种权重，供后续 Dijkstra 使用；Graph::update_edge_traffic() 仅更新已校验数据并保留 base_time()，不推进时钟、不自动检测拥堵阈值或重规划。
+- Edge::weight() 统一三种权重，供 Dijkstra 使用；Graph::update_edge_traffic() 仅更新已校验数据并保留 base_time()，不推进时钟、不自动检测拥堵阈值或重规划。
 - Graph 以邻接表存储，空间为 O(V+E)；矩阵按需生成，空间为 O(V²)。道路 ID 查询当前为 O(E)，适合课程规模；以后可增加索引。
 
 ## 后续迭代
@@ -232,8 +289,8 @@ int main() {
 1. 初始化、需求与骨架：已完成。
 2. 图操作、JSON 配置、规模达标数据及测试：已完成。
 3. Dijkstra、两种策略、最近邻配送顺序、可选载重检查、CSV 与绘图：已完成。
-4. 订单/车辆配置、模拟时钟、车辆位置、时间窗口执行、超时记录和动态紧急订单。
+4. 按本次范围完成时钟、车辆、逐步仿真、等待/卸货、固定处罚和车辆回放；独立订单/车辆 JSON 与动态紧急订单留待后续单独迭代。
 5. 路况模拟、拥堵阈值触发、剩余路线重规划与高亮同步。
 6. 优化、整体验证、最终文档和展示答问。
 
-按本阶段要求采用最近邻启发式，不追求全局最优。第 4 阶段仍需明确 penalty 系数与动态订单取货规则，详见需求文档。仓库公开但项目自身尚未指定开源许可证；第三方库按其随附许可证使用。
+当前采用最近邻启发式，不追求全局最优。本阶段已按用户选择确定固定处罚规则；后续动态订单仍需明确取货来源及在途重规划衔接规则，详见需求文档。仓库公开但项目自身尚未指定开源许可证；第三方库按其随附许可证使用。

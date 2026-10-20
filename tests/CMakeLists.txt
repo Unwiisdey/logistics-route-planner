@@ -43,3 +43,18 @@ add_test(NAME app.planning_option_without_plan COMMAND logistics_app --warehouse
 set_tests_properties(app.planning_option_without_plan PROPERTIES WILL_FAIL TRUE)
 add_test(NAME app.insufficient_capacity COMMAND logistics_app --plan distance --capacity 0)
 set_tests_properties(app.insufficient_capacity PROPERTIES WILL_FAIL TRUE)
+
+add_executable(simulation_tests simulation_tests.cpp)
+target_link_libraries(simulation_tests PRIVATE logistics_core)
+logistics_warnings(simulation_tests)
+foreach(case clock vehicle motion windows fixed_penalty step_invariance zero_time_and_empty
+             repeated_nodes invalid_inputs export_and_snapshot demo_network)
+    add_test(NAME simulation.${case} COMMAND simulation_tests ${case})
+    set_tests_properties(simulation.${case} PROPERTIES WORKING_DIRECTORY "${PROJECT_BINARY_DIR}")
+endforeach()
+add_test(NAME app.simulate COMMAND logistics_app --plan distance --simulate --step 5)
+set_tests_properties(app.simulate PROPERTIES PASS_REGULAR_EXPRESSION "Simulation complete: delivered=25")
+add_test(NAME app.invalid_step COMMAND logistics_app --plan distance --simulate --step 0)
+set_tests_properties(app.invalid_step PROPERTIES WILL_FAIL TRUE)
+add_test(NAME app.simulation_option_without_mode COMMAND logistics_app --plan distance --step 5)
+set_tests_properties(app.simulation_option_without_mode PROPERTIES WILL_FAIL TRUE)

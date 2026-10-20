@@ -11,7 +11,7 @@ namespace logistics {
 // vehicle and order parsing are deferred to the next stages.
 struct Configuration {
     Graph graph;
-    Vehicle vehicle;
+    std::optional<Vehicle> vehicle;
     std::vector<Order> orders;
     Minutes simulation_start_minutes{0.0};
 };

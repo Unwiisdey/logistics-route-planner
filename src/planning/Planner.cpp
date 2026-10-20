@@ -2,6 +2,7 @@
 #include "logistics/planning/Dijkstra.h"
 #include "logistics/detail/checked_math.hpp"
 
+#include <algorithm>
 #include <cmath>
 #include <limits>
 #include <set>
@@ -123,6 +124,78 @@ RoutePlan Planner::plan(const Graph& graph, const PlanningRequest& request) {
     result.status = PlanStatus::Feasible;
     result.diagnostic = "nearest-neighbor tour; globally optimal tour and time-window feasibility are not guaranteed";
     return result;
+}
+
+RouteTiming Planner::schedule(const Graph& graph, const RoutePlan& plan, Minutes unload_minutes) {
+    if (plan.status != PlanStatus::Feasible || plan.node_sequence.empty() ||
+        plan.node_sequence.size() != plan.road_sequence.size() + 1 ||
+        plan.node_sequence.front() != plan.start_node_id || plan.node_sequence.back() != plan.warehouse_id ||
+        !graph.find_node(plan.warehouse_id) || graph.find_node(plan.warehouse_id)->type() != NodeType::Warehouse ||
+        !std::isfinite(unload_minutes) || unload_minutes < 0 ||
+        !std::isfinite(plan.departure_time) || plan.departure_time < 0 ||
+        !plan.unassigned_delivery_node_ids.empty() || !plan.unassigned_order_ids.empty() ||
+        (plan.strategy != RouteStrategy::ShortestDistance && plan.strategy != RouteStrategy::LowestCost) ||
+        plan.stops.size() < 2 || plan.stops.front().role != StopRole::Start ||
+        plan.stops.front().route_node_index != 0 || plan.stops.back().role != StopRole::Return ||
+        plan.stops.back().route_node_index != plan.node_sequence.size() - 1) {
+        throw std::invalid_argument("schedule requires a complete route and finite nonnegative times");
+    }
+    std::set<std::size_t> delivery_steps;
+    std::set<NodeId> served;
+    std::size_t previous_step = 0;
+    for (std::size_t index = 0; index < plan.stops.size(); ++index) {
+        const auto& stop = plan.stops[index];
+        if (stop.route_node_index >= plan.node_sequence.size() || stop.route_node_index < previous_step ||
+            stop.node_id != plan.node_sequence[stop.route_node_index] ||
+            (index > 0 && index + 1 < plan.stops.size() && stop.role != StopRole::Delivery)) {
+            throw std::invalid_argument("scheduled stops must follow the route");
+        }
+        previous_step = stop.route_node_index;
+        if (stop.role != StopRole::Delivery) { continue; }
+        const auto* node = graph.find_node(stop.node_id);
+        if (!node || node->type() != NodeType::DeliveryPoint || stop.route_node_index >= plan.node_sequence.size() ||
+            plan.node_sequence[stop.route_node_index] != stop.node_id || !served.insert(stop.node_id).second ||
+            !delivery_steps.insert(stop.route_node_index).second) {
+            throw std::invalid_argument("invalid scheduled delivery stop");
+        }
+    }
+    const std::set<NodeId> requested(plan.requested_delivery_node_ids.begin(), plan.requested_delivery_node_ids.end());
+    if (requested != served || requested.size() != plan.requested_delivery_node_ids.size()) {
+        throw std::invalid_argument("schedule delivery coverage mismatch");
+    }
+    RouteTiming timing;
+    double now = plan.departure_time;
+    double distance = 0, travel = 0, cost = 0;
+    for (std::size_t i = 0; i < plan.node_sequence.size(); ++i) {
+        const auto* node = graph.find_node(plan.node_sequence[i]);
+        if (!node) { throw std::invalid_argument("scheduled node is missing"); }
+        timing.arrivals.push_back(now);
+        if (delivery_steps.count(i)) {
+            const double wait = node->time_window() ? std::max(0.0, node->time_window()->earliest - now) : 0;
+            timing.total_wait_minutes = detail::checked_sum(timing.total_wait_minutes, wait);
+            timing.total_unload_minutes = detail::checked_sum(timing.total_unload_minutes, unload_minutes);
+            now = detail::checked_sum(detail::checked_sum(now, wait), unload_minutes);
+        }
+        timing.departures.push_back(now);
+        if (i < plan.road_sequence.size()) {
+            const auto* edge = graph.find_edge_by_id(plan.road_sequence[i]);
+            if (!edge || edge->from_id() != plan.node_sequence[i] || edge->to_id() != plan.node_sequence[i + 1] ||
+                edge->traffic_status() == TrafficStatus::Closed) {
+                throw std::invalid_argument("scheduled road is missing, closed or disconnected");
+            }
+            now = detail::checked_sum(now, edge->time());
+            distance = detail::checked_sum(distance, edge->distance());
+            travel = detail::checked_sum(travel, edge->time());
+            cost = detail::checked_sum(cost, edge->cost());
+        }
+    }
+    const auto near = [](double a, double b) {
+        return std::isfinite(a) && std::isfinite(b) && std::abs(a - b) <= 1e-9 * std::max({1.0, std::abs(a), std::abs(b)});
+    };
+    if (!near(distance, plan.total_distance_km) || !near(travel, plan.total_travel_minutes) || !near(cost, plan.total_cost_yuan)) {
+        throw std::invalid_argument("route totals are stale; replan before scheduling");
+    }
+    return timing;
 }
 
 }  // namespace logistics

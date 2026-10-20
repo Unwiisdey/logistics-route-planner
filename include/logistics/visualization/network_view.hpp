@@ -5,7 +5,7 @@
 
 namespace logistics {
 
-// GUI-independent interface. There is no GUI implementation in stage 1.
+// GUI-independent interface for a future live view; current Python views replay exported snapshots.
 class NetworkView {
 public:
     virtual ~NetworkView() = default;
