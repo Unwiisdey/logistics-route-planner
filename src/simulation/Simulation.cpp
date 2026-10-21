@@ -51,6 +51,7 @@ void state_row(std::ostream& out, const SimulationSnapshot& s) {
 
 Simulation::Simulation(Graph graph, RoutePlan route, SimulationOptions options)
     : graph_(std::move(graph)), route_(std::move(route)), options_(std::move(options)),
+      path_cache_(options_.path_cache_capacity),
       timing_(Planner::schedule(graph_, route_, options_.unload_minutes)),
       clock_(route_.departure_time, options_.step_minutes),
       vehicle_(options_.vehicle_id, options_.capacity_kg, initial_load(graph_, route_), route_.warehouse_id) {
@@ -272,6 +273,9 @@ void Simulation::write_log(std::ostream& out) const {
         out << '\n';
     }
     const auto s = snapshot();
+    const auto& cache = path_cache_.stats();
+    out << "Path cache: hits=" << cache.hits << " misses=" << cache.misses << " invalidations=" << cache.invalidations
+        << " evictions=" << cache.evictions << '\n';
     out << "Order results:\n";
     for (const auto& task : deliveries_) {
         out << "  " << task.order_id << " destination=" << task.node_id
@@ -320,9 +324,15 @@ void Simulation::export_csv(const std::filesystem::path& directory) const {
         revisions.flush(); stops.flush(); decisions.flush();
     }
     auto settings = open_csv(directory / "simulation_options.csv");
-    settings << "vehicle_id,capacity_kg,start_minutes,step_minutes,unload_minutes,fixed_late_penalty\n"
+    settings << "vehicle_id,capacity_kg,start_minutes,step_minutes,unload_minutes,fixed_late_penalty,path_cache_capacity\n"
              << csv(vehicle_.id()) << ',' << vehicle_.capacity() << ',' << route_.departure_time << ',' << clock_.step()
-             << ',' << options_.unload_minutes << ',' << options_.late_penalty_points << '\n';
+             << ',' << options_.unload_minutes << ',' << options_.late_penalty_points << ',' << options_.path_cache_capacity << '\n';
+    auto cache_file = open_csv(directory / "path_cache.csv");
+    const auto& cache = path_cache_.stats();
+    cache_file << "capacity,entries,hits,misses,invalidations,evictions\n"
+               << path_cache_.capacity() << ',' << path_cache_.size() << ',' << cache.hits << ',' << cache.misses << ','
+               << cache.invalidations << ',' << cache.evictions << '\n';
+    cache_file.flush();
     auto states = open_csv(directory / "simulation.csv");
     state_header(states); states << '\n';
     for (const auto& state : history_) { state_row(states, state); states << '\n'; }

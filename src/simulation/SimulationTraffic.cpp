@@ -97,7 +97,7 @@ void Simulation::apply_traffic(const std::vector<TrafficUpdate>& updates) {
     }
     TrafficSimulator::apply(graph_, clock_.now(), updates);
     ReplanResult repaired;
-    try { repaired = Replanner::repair(graph_, ctx, old, triggers); }
+    try { repaired = Replanner::repair(graph_, ctx, old, triggers, &path_cache_); }
     catch (...) {
         // Roll back only the changed edges if evaluating finite route totals fails.
         for (const auto& change : changes) {

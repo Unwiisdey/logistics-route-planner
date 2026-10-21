@@ -16,6 +16,7 @@ struct SimulationOptions {
     double late_penalty_points{10.0};  // Fixed charge per late delivery, NOT per minute.
     std::string vehicle_id{"V01"};
     double capacity_kg{1000.0};
+    std::size_t path_cache_capacity{256};
 };
 struct DeliveryRecord {
     OrderId order_id;
@@ -97,6 +98,7 @@ public:
     void enable_traffic(TrafficOptions options = {});
     void apply_traffic(const std::vector<TrafficUpdate>& updates);
     const Graph& network() const noexcept { return graph_; }
+    const PathCacheStats& path_cache_stats() const noexcept { return path_cache_.stats(); }
     const std::vector<TrafficChange>& traffic_changes() const noexcept { return traffic_changes_; }
     const std::vector<ReplanningRecord>& replanning_records() const noexcept { return replanning_records_; }
     void advance();
@@ -135,6 +137,7 @@ private:
     Graph graph_;
     RoutePlan route_;
     SimulationOptions options_;
+    ShortestPathCache path_cache_;
     RouteTiming timing_;
     SimClock clock_;
     Vehicle vehicle_;

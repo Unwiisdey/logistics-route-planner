@@ -84,6 +84,7 @@ int main(int argc, char* argv[]) {
                              "          [--capacity KG] [--export DIRECTORY]\n"
                              "Simulation: --simulate [--step MINUTES] [--unload-minutes MINUTES]\n"
                              "            [--late-penalty POINTS] [--vehicle-id ID]\n"
+                             "            [--cache-capacity 0..65536] (default 256; 0 disables cache)\n"
                              "            [--hard-windows | --scenario ORDER_JSON]\n"
                              "Traffic: --traffic [--traffic-interval SECONDS] [--traffic-fraction 0..1]\n"
                              "         [--traffic-seed UINT32] (defaults: 30 seconds, 0.1, 42)\n"
@@ -144,6 +145,13 @@ int main(int argc, char* argv[]) {
                 scenario_path = std::filesystem::path(argv[++index]);
                 hard_windows = true;
                 simulation_options = true;
+            } else if (argument == "--cache-capacity" && index + 1 < argc) {
+                const auto value = parse_number(argv[++index], argument);
+                if (!std::isfinite(value) || value < 0 || value > 65536 || std::floor(value) != value) {
+                    throw std::invalid_argument("cache capacity must be an integer in 0..65536");
+                }
+                simulation.path_cache_capacity = static_cast<std::size_t>(value);
+                simulation_options = true;
             } else if (argument == "--step" && index + 1 < argc) {
                 simulation.step_minutes = parse_number(argv[++index], argument);
                 simulation_options = true;
@@ -179,7 +187,7 @@ int main(int argc, char* argv[]) {
             path = std::filesystem::path(argv[0]).parent_path() / "config" / "network.json";
         }
         const auto graph = logistics::ConfigLoader::load_network(path, check_size);
-        std::cout << "Logistics Route Planner v0.6.0\n"
+        std::cout << "Logistics Route Planner v" << LOGISTICS_VERSION << '\n'
                   << "Nodes: " << graph.node_count() << " | Edges: " << graph.edge_count() << '\n'
                   << "Warehouses: " << graph.node_count(logistics::NodeType::Warehouse)
                   << " | Delivery points: " << graph.node_count(logistics::NodeType::DeliveryPoint)

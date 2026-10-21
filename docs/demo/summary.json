@@ -1,0 +1,10 @@
+{
+  "app": "logistics_app.exe",
+  "finished_minutes": 656.1250276770141,
+  "delivered": 4,
+  "late": 0,
+  "penalty": 0.0,
+  "frames": 393,
+  "traffic_changes": 3520,
+  "active_revision": 29
+}

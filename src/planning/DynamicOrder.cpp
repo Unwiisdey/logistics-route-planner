@@ -51,7 +51,7 @@ Order DynamicOrder::urgent(OrderId id, NodeId warehouse, NodeId destination, dou
                  TimeWindow{received_at, detail::checked_sum(received_at, deadline_after)}, OrderPriority::Urgent, received_at);
 }
 InsertionResult DynamicOrder::evaluate(const Graph& graph, const OrderPlanningContext& ctx,
-                                       const std::vector<OrderAction>& sequence) {
+                                       const std::vector<OrderAction>& sequence, ShortestPathCache* cache) {
     validate(graph, ctx);
     if (ctx.current_load - ctx.capacity > 1e-9) { return reject("initial load exceeds capacity"); }
     std::map<OrderId, const Order*> orders;
@@ -64,7 +64,8 @@ InsertionResult DynamicOrder::evaluate(const Graph& graph, const OrderPlanningCo
     double now = ctx.start_time, load = std::min(ctx.current_load, ctx.capacity);
     const auto metric = ctx.strategy == RouteStrategy::ShortestDistance ? WeightMetric::Distance : WeightMetric::Cost;
     const auto travel_to = [&](const NodeId& target) {
-        const auto path = Dijkstra::shortest_path(graph, route.nodes.back(), target, metric);
+        const auto path = cache ? cache->query(graph, route.nodes.back(), target, metric)
+                                : Dijkstra::shortest_path(graph, route.nodes.back(), target, metric);
         if (!path.reachable) { return false; }
         route.nodes.insert(route.nodes.end(), path.node_sequence.begin() + 1, path.node_sequence.end());
         route.roads.insert(route.roads.end(), path.road_sequence.begin(), path.road_sequence.end());
@@ -111,7 +112,10 @@ InsertionResult DynamicOrder::evaluate(const Graph& graph, const OrderPlanningCo
     route.finish_time = now;
     return {true, "all remaining windows, pickup precedence and capacity checked", std::move(route)};
 }
-InsertionResult DynamicOrder::insert(const Graph& graph, const OrderPlanningContext& ctx, const Order& order) {
+InsertionResult DynamicOrder::insert(const Graph& graph, const OrderPlanningContext& ctx, const Order& order,
+                                     ShortestPathCache* cache) {
+    ShortestPathCache local;
+    if (!cache) { cache = &local; }
     auto candidate_context = ctx;
     for (const auto& existing : ctx.orders) {
         if (existing.id() == order.id()) { return reject("duplicate order ID"); }
@@ -128,7 +132,7 @@ InsertionResult DynamicOrder::insert(const Graph& graph, const OrderPlanningCont
         for (std::size_t delivery = pickup + 1; delivery <= with_pickup.size(); ++delivery) {
             auto sequence = with_pickup;
             sequence.insert(sequence.begin() + static_cast<std::ptrdiff_t>(delivery), {order.id(), OrderActionKind::Delivery});
-            auto candidate = evaluate(graph, candidate_context, sequence);
+            auto candidate = evaluate(graph, candidate_context, sequence, cache);
             if (!candidate.accepted) { last_reason = candidate.reason; continue; }
             double service = 0;
             for (const auto& stop : candidate.route.stops) {
@@ -144,7 +148,9 @@ InsertionResult DynamicOrder::insert(const Graph& graph, const OrderPlanningCont
     if (!best.accepted) { best.reason += "; last constraint failure: " + last_reason; }
     return best;
 }
-InsertionResult DynamicOrder::initial(const Graph& graph, OrderPlanningContext ctx) {
+InsertionResult DynamicOrder::initial(const Graph& graph, OrderPlanningContext ctx, ShortestPathCache* cache) {
+    ShortestPathCache local;
+    if (!cache) { cache = &local; }
     validate(graph, ctx);
     if (ctx.current_load - ctx.capacity > 1e-9) { return reject("initial cargo exceeds capacity"); }
     auto all = ctx.orders;
@@ -155,7 +161,7 @@ InsertionResult DynamicOrder::initial(const Graph& graph, OrderPlanningContext c
         return std::make_pair(ad, a.id()) < std::make_pair(bd, b.id());
     });
     ctx.orders.clear(); ctx.loaded.clear(); ctx.incumbent.clear();
-    InsertionResult result = evaluate(graph, ctx, {});
+    InsertionResult result = evaluate(graph, ctx, {}, cache);
     for (const auto& order : all) {
         if (order.warehouse_id() != ctx.start_node || order.release_time() > ctx.start_time) {
             return reject("initial orders must be available at the starting warehouse");
@@ -166,7 +172,7 @@ InsertionResult DynamicOrder::initial(const Graph& graph, OrderPlanningContext c
         for (std::size_t index = 0; index <= ctx.incumbent.size(); ++index) {
             auto sequence = ctx.incumbent;
             sequence.insert(sequence.begin() + static_cast<std::ptrdiff_t>(index), {order.id(), OrderActionKind::Delivery});
-            auto attempt = evaluate(graph, ctx, sequence);
+            auto attempt = evaluate(graph, ctx, sequence, cache);
             if (attempt.accepted && (!best.accepted || score(attempt.route, ctx.strategy) < best_score)) {
                 best_score = score(attempt.route, ctx.strategy); best = std::move(attempt);
             }

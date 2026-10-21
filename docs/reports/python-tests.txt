@@ -1,0 +1,28 @@
+test_broken_route (test_plot_network.PlotDataTests.test_broken_route) ... ok
+test_closed_route (test_plot_network.PlotDataTests.test_closed_route) ... ok
+test_missing_headers (test_plot_network.PlotDataTests.test_missing_headers) ... ok
+test_nonfinite_coordinate (test_plot_network.PlotDataTests.test_nonfinite_coordinate) ... ok
+test_valid (test_plot_network.PlotDataTests.test_valid) ... ok
+test_wrong_total (test_plot_network.PlotDataTests.test_wrong_total) ... ok
+test_false_completion (test_plot_simulation.SimulationPlotTests.test_false_completion) ... ok
+test_nonfinite_state (test_plot_simulation.SimulationPlotTests.test_nonfinite_state) ... ok
+test_position (test_plot_simulation.SimulationPlotTests.test_position) ... ok
+test_revised_routes_not_misread_as_static (test_plot_simulation.SimulationPlotTests.test_revised_routes_not_misread_as_static) ... ok
+test_time_reversal (test_plot_simulation.SimulationPlotTests.test_time_reversal) ... ok
+test_waiting_position (test_plot_simulation.SimulationPlotTests.test_waiting_position) ... ok
+test_wrong_active_edge (test_plot_simulation.SimulationPlotTests.test_wrong_active_edge) ... ok
+test_wrong_coordinates (test_plot_simulation.SimulationPlotTests.test_wrong_coordinates) ... ok
+test_backward_seek (test_plot_traffic.TrafficPlotTests.test_backward_seek) ... ok
+test_future_traffic (test_plot_traffic.TrafficPlotTests.test_future_traffic) ... ok
+test_invalid_traffic_chain (test_plot_traffic.TrafficPlotTests.test_invalid_traffic_chain) ... ok
+test_missing_revision (test_plot_traffic.TrafficPlotTests.test_missing_revision) ... ok
+test_pending_and_active_routes (test_plot_traffic.TrafficPlotTests.test_pending_and_active_routes) ... ok
+test_same_timestamp_distinct_versions (test_plot_traffic.TrafficPlotTests.test_same_timestamp_distinct_versions) ... ok
+test_traversals_survive_revision (test_plot_traffic.TrafficPlotTests.test_traversals_survive_revision) ... ok
+test_wrong_pending_anchor (test_plot_traffic.TrafficPlotTests.test_wrong_pending_anchor) ... ok
+test_wrong_position (test_plot_traffic.TrafficPlotTests.test_wrong_position) ... ok
+
+----------------------------------------------------------------------
+Ran 23 tests in 0.248s
+
+OK

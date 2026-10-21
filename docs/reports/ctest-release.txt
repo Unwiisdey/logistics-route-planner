@@ -1,0 +1,202 @@
+Internal ctest changing into directory: D:/大学作业/数据结构课设/build
+Test project D:/大学作业/数据结构课设/build
+      Start  1: graph.nodes
+ 1/96 Test  #1: graph.nodes ..............................   Passed    0.14 sec
+      Start  2: graph.remove_incident_edges
+ 2/96 Test  #2: graph.remove_incident_edges ..............   Passed    0.01 sec
+      Start  3: graph.edges
+ 3/96 Test  #3: graph.edges ..............................   Passed    0.01 sec
+      Start  4: graph.invalid_values
+ 4/96 Test  #4: graph.invalid_values .....................   Passed    0.01 sec
+      Start  5: graph.adjacency_list
+ 5/96 Test  #5: graph.adjacency_list .....................   Passed    0.01 sec
+      Start  6: graph.adjacency_matrix
+ 6/96 Test  #6: graph.adjacency_matrix ...................   Passed    0.01 sec
+      Start  7: graph.traffic_data
+ 7/96 Test  #7: graph.traffic_data .......................   Passed    0.01 sec
+      Start  8: graph.empty_and_copy
+ 8/96 Test  #8: graph.empty_and_copy .....................   Passed    0.01 sec
+      Start  9: config.valid_and_defaults
+ 9/96 Test  #9: config.valid_and_defaults ................   Passed    0.12 sec
+      Start 10: config.malformed_json
+10/96 Test #10: config.malformed_json ....................   Passed    0.01 sec
+      Start 11: config.invalid_schema
+11/96 Test #11: config.invalid_schema ....................   Passed    0.01 sec
+      Start 12: config.invalid_nodes
+12/96 Test #12: config.invalid_nodes .....................   Passed    0.01 sec
+      Start 13: config.invalid_edges
+13/96 Test #13: config.invalid_edges .....................   Passed    0.01 sec
+      Start 14: config.file_and_size_errors
+14/96 Test #14: config.file_and_size_errors ..............   Passed    0.02 sec
+      Start 15: config.demo_network
+15/96 Test #15: config.demo_network ......................   Passed    0.01 sec
+      Start 16: app.demo
+16/96 Test #16: app.demo .................................   Passed    0.12 sec
+      Start 17: app.matrix
+17/96 Test #17: app.matrix ...............................   Passed    0.01 sec
+      Start 18: app.missing_file
+18/96 Test #18: app.missing_file .........................   Passed    0.01 sec
+      Start 19: app.invalid_option
+19/96 Test #19: app.invalid_option .......................   Passed    0.01 sec
+      Start 20: app.conflicting_options
+20/96 Test #20: app.conflicting_options ..................   Passed    0.01 sec
+      Start 21: planning.shortest_strategies
+21/96 Test #21: planning.shortest_strategies .............   Passed    0.12 sec
+      Start 22: planning.shortest_edge_cases
+22/96 Test #22: planning.shortest_edge_cases .............   Passed    0.01 sec
+      Start 23: planning.zero_cycles_and_ties
+23/96 Test #23: planning.zero_cycles_and_ties ............   Passed    0.01 sec
+      Start 24: planning.overflow_detour
+24/96 Test #24: planning.overflow_detour .................   Passed    0.01 sec
+      Start 25: planning.floyd_comparison
+25/96 Test #25: planning.floyd_comparison ................   Passed    0.02 sec
+      Start 26: planning.tours_and_totals
+26/96 Test #26: planning.tours_and_totals ................   Passed    0.01 sec
+      Start 27: planning.empty_subset_and_start
+27/96 Test #27: planning.empty_subset_and_start ..........   Passed    0.01 sec
+      Start 28: planning.transit_delivery
+28/96 Test #28: planning.transit_delivery ................   Passed    0.01 sec
+      Start 29: planning.invalid_requests_and_failures
+29/96 Test #29: planning.invalid_requests_and_failures ...   Passed    0.01 sec
+      Start 30: planning.csv_export
+30/96 Test #30: planning.csv_export ......................   Passed    0.01 sec
+      Start 31: planning.export_rejects_invalid_plan
+31/96 Test #31: planning.export_rejects_invalid_plan .....   Passed    0.01 sec
+      Start 32: planning.demo_tours
+32/96 Test #32: planning.demo_tours ......................   Passed    0.01 sec
+      Start 33: app.plan_distance
+33/96 Test #33: app.plan_distance ........................   Passed    0.01 sec
+      Start 34: app.plan_cost
+34/96 Test #34: app.plan_cost ............................   Passed    0.01 sec
+      Start 35: app.invalid_plan_strategy
+35/96 Test #35: app.invalid_plan_strategy ................   Passed    0.01 sec
+      Start 36: app.planning_option_without_plan
+36/96 Test #36: app.planning_option_without_plan .........   Passed    0.01 sec
+      Start 37: app.insufficient_capacity
+37/96 Test #37: app.insufficient_capacity ................   Passed    0.01 sec
+      Start 38: simulation.clock
+38/96 Test #38: simulation.clock .........................   Passed    0.12 sec
+      Start 39: simulation.vehicle
+39/96 Test #39: simulation.vehicle .......................   Passed    0.01 sec
+      Start 40: simulation.motion
+40/96 Test #40: simulation.motion ........................   Passed    0.01 sec
+      Start 41: simulation.windows
+41/96 Test #41: simulation.windows .......................   Passed    0.01 sec
+      Start 42: simulation.fixed_penalty
+42/96 Test #42: simulation.fixed_penalty .................   Passed    0.01 sec
+      Start 43: simulation.step_invariance
+43/96 Test #43: simulation.step_invariance ...............   Passed    0.01 sec
+      Start 44: simulation.zero_time_and_empty
+44/96 Test #44: simulation.zero_time_and_empty ...........   Passed    0.01 sec
+      Start 45: simulation.repeated_nodes
+45/96 Test #45: simulation.repeated_nodes ................   Passed    0.01 sec
+      Start 46: simulation.invalid_inputs
+46/96 Test #46: simulation.invalid_inputs ................   Passed    0.01 sec
+      Start 47: simulation.export_and_snapshot
+47/96 Test #47: simulation.export_and_snapshot ...........   Passed    0.01 sec
+      Start 48: simulation.demo_network
+48/96 Test #48: simulation.demo_network ..................   Passed    0.01 sec
+      Start 49: app.simulate
+49/96 Test #49: app.simulate .............................   Passed    0.01 sec
+      Start 50: app.invalid_step
+50/96 Test #50: app.invalid_step .........................   Passed    0.01 sec
+      Start 51: app.simulation_option_without_mode
+51/96 Test #51: app.simulation_option_without_mode .......   Passed    0.01 sec
+      Start 52: orders.windows
+52/96 Test #52: orders.windows ...........................   Passed    0.12 sec
+      Start 53: orders.order_values
+53/96 Test #53: orders.order_values ......................   Passed    0.01 sec
+      Start 54: orders.strict_initial
+54/96 Test #54: orders.strict_initial ....................   Passed    0.01 sec
+      Start 55: orders.urgent_priority
+55/96 Test #55: orders.urgent_priority ...................   Passed    0.01 sec
+      Start 56: orders.capacity_after_unload
+56/96 Test #56: orders.capacity_after_unload .............   Passed    0.01 sec
+      Start 57: orders.preserve_existing_windows
+57/96 Test #57: orders.preserve_existing_windows .........   Passed    0.01 sec
+      Start 58: orders.moving_insertion
+58/96 Test #58: orders.moving_insertion ..................   Passed    0.01 sec
+      Start 59: orders.locked_service
+59/96 Test #59: orders.locked_service ....................   Passed    0.01 sec
+      Start 60: orders.multiple_pending
+60/96 Test #60: orders.multiple_pending ..................   Passed    0.01 sec
+      Start 61: orders.atomic_rejection
+61/96 Test #61: orders.atomic_rejection ..................   Passed    0.01 sec
+      Start 62: orders.idle_restart
+62/96 Test #62: orders.idle_restart ......................   Passed    0.01 sec
+      Start 63: orders.legacy_upgrade
+63/96 Test #63: orders.legacy_upgrade ....................   Passed    0.01 sec
+      Start 64: orders.step_consistency
+64/96 Test #64: orders.step_consistency ..................   Passed    0.01 sec
+      Start 65: orders.scenario_config
+65/96 Test #65: orders.scenario_config ...................   Passed    0.01 sec
+      Start 66: orders.revision_export
+66/96 Test #66: orders.revision_export ...................   Passed    0.01 sec
+      Start 67: app.order_scenario
+67/96 Test #67: app.order_scenario .......................   Passed    0.01 sec
+      Start 68: app.hard_windows
+68/96 Test #68: app.hard_windows .........................   Passed    0.01 sec
+      Start 69: app.scenario_without_simulation
+69/96 Test #69: app.scenario_without_simulation ..........   Passed    0.01 sec
+      Start 70: traffic.threshold
+70/96 Test #70: traffic.threshold ........................   Passed    0.11 sec
+      Start 71: traffic.sampling
+71/96 Test #71: traffic.sampling .........................   Passed    0.01 sec
+      Start 72: traffic.invalid_batch
+72/96 Test #72: traffic.invalid_batch ....................   Passed    0.01 sec
+      Start 73: traffic.local_repair
+73/96 Test #73: traffic.local_repair .....................   Passed    0.01 sec
+      Start 74: traffic.unrelated_and_current
+74/96 Test #74: traffic.unrelated_and_current ............   Passed    0.01 sec
+      Start 75: traffic.recovery_and_small_change
+75/96 Test #75: traffic.recovery_and_small_change ........   Passed    0.01 sec
+      Start 76: traffic.waiting_anchor
+76/96 Test #76: traffic.waiting_anchor ...................   Passed    0.01 sec
+      Start 77: traffic.unavoidable_late
+77/96 Test #77: traffic.unavoidable_late .................   Passed    0.01 sec
+      Start 78: traffic.pending_insertion
+78/96 Test #78: traffic.pending_insertion ................   Passed    0.01 sec
+      Start 79: traffic.step_invariance
+79/96 Test #79: traffic.step_invariance ..................   Passed    0.01 sec
+      Start 80: traffic.legacy_and_export
+80/96 Test #80: traffic.legacy_and_export ................   Passed    0.01 sec
+      Start 81: app.traffic
+81/96 Test #81: app.traffic ..............................   Passed    0.10 sec
+      Start 82: app.invalid_traffic_interval
+82/96 Test #82: app.invalid_traffic_interval .............   Passed    0.01 sec
+      Start 83: app.traffic_without_simulation
+83/96 Test #83: app.traffic_without_simulation ...........   Passed    0.01 sec
+      Start 84: app.invalid_traffic_seed
+84/96 Test #84: app.invalid_traffic_seed .................   Passed    0.01 sec
+      Start 85: cache.hits_and_metrics
+85/96 Test #85: cache.hits_and_metrics ...................   Passed    0.12 sec
+      Start 86: cache.traffic_invalidation
+86/96 Test #86: cache.traffic_invalidation ...............   Passed    0.01 sec
+      Start 87: cache.topology_and_unreachable
+87/96 Test #87: cache.topology_and_unreachable ...........   Passed    0.01 sec
+      Start 88: cache.graph_identity
+88/96 Test #88: cache.graph_identity .....................   Passed    0.01 sec
+      Start 89: cache.lru_and_disabled
+89/96 Test #89: cache.lru_and_disabled ...................   Passed    0.01 sec
+      Start 90: cache.invalid_and_noop
+90/96 Test #90: cache.invalid_and_noop ...................   Passed    0.01 sec
+      Start 91: integration.dynamic_orders
+91/96 Test #91: integration.dynamic_orders ...............   Passed    0.12 sec
+      Start 92: integration.traffic_cache_equivalence
+92/96 Test #92: integration.traffic_cache_equivalence ....   Passed    0.15 sec
+      Start 93: integration.cost_and_step
+93/96 Test #93: integration.cost_and_step ................   Passed    0.06 sec
+      Start 94: app.disabled_cache
+94/96 Test #94: app.disabled_cache .......................   Passed    0.01 sec
+      Start 95: app.invalid_cache_capacity
+95/96 Test #95: app.invalid_cache_capacity ...............   Passed    0.01 sec
+      Start 96: performance.cache_smoke
+96/96 Test #96: performance.cache_smoke ..................   Passed    0.12 sec
+
+100% tests passed, 0 tests failed out of 96
+
+Label Time Summary:
+integration    =   0.33 sec*proc (3 tests)
+performance    =   0.12 sec*proc (1 test)
+
+Total Test time (real) =   2.41 sec

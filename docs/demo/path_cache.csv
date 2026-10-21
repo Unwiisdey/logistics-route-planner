@@ -1,0 +1,2 @@
+capacity,entries,hits,misses,invalidations,evictions
+256,1,177,305,181,0

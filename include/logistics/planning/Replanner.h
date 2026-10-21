@@ -12,6 +12,7 @@ public:
     // Keep action order. Search by travel time only between stops whose old path
     // contains a trigger road; retain all other roads verbatim, then refresh ETAs.
     static ReplanResult repair(const Graph& graph, const OrderPlanningContext& context,
-                              const OrderRoute& remaining, const std::set<RoadId>& triggers);
+                              const OrderRoute& remaining, const std::set<RoadId>& triggers,
+                              ShortestPathCache* cache = nullptr);
 };
 }  // namespace logistics

@@ -29,7 +29,7 @@ void Simulation::wait_until(Minutes time) {
 
 Simulation::Simulation(Graph graph, const NodeId& warehouse, std::vector<Order> orders, Minutes start,
                        SimulationOptions options, RouteStrategy strategy)
-    : graph_(std::move(graph)), options_(std::move(options)), clock_(start, options_.step_minutes),
+    : graph_(std::move(graph)), options_(std::move(options)), path_cache_(options_.path_cache_capacity), clock_(start, options_.step_minutes),
       vehicle_(options_.vehicle_id, options_.capacity_kg, cargo_sum(orders), warehouse), order_mode_(true) {
     if (!std::isfinite(options_.late_penalty_points) || options_.late_penalty_points < 0 ||
         (!orders.empty() && options_.late_penalty_points > std::numeric_limits<double>::max() / static_cast<double>(orders.size()))) {
@@ -43,7 +43,7 @@ Simulation::Simulation(Graph graph, const NodeId& warehouse, std::vector<Order> 
     ctx.capacity = vehicle_.capacity(); ctx.current_load = vehicle_.current_load();
     ctx.unload_minutes = options_.unload_minutes; ctx.strategy = strategy; ctx.orders = orders;
     for (const auto& order : orders) { ctx.loaded.insert(order.id()); }
-    auto planned = DynamicOrder::initial(graph_, ctx);
+    auto planned = DynamicOrder::initial(graph_, ctx, &path_cache_);
     if (!planned.accepted) { throw std::invalid_argument("hard-window initial planning failed: " + planned.reason); }
     for (const auto& order : orders) { add_order_record(order, true); }
     apply_order_route(std::move(planned.route));
@@ -120,7 +120,7 @@ InsertionResult Simulation::insert_order(const Order& order) {
         result.reason = "penalty total could overflow";
     }
     if (result.reason.empty()) {
-        try { result = DynamicOrder::insert(graph_, ctx, order); }
+        try { result = DynamicOrder::insert(graph_, ctx, order, &path_cache_); }
         catch (const std::invalid_argument& error) { result.reason = error.what(); }
         catch (const std::overflow_error& error) { result.reason = error.what(); }
     }

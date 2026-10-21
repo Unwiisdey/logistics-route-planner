@@ -3,11 +3,14 @@
 #include "logistics/model/Edge.h"
 #include <cstddef>
 #include <iosfwd>
+#include <memory>
 #include <optional>
 #include <unordered_map>
 #include <vector>
 
 namespace logistics {
+// Opaque state identity. Copies share a token until either graph is mutated.
+struct GraphRevision final {};
 struct AdjacencyMatrix {
     std::vector<NodeId> node_ids;  // Sorted row/column labels.
     std::vector<std::vector<std::optional<double>>> weights;
@@ -15,6 +18,7 @@ struct AdjacencyMatrix {
 
 class Graph {
 public:
+    const std::shared_ptr<const GraphRevision>& revision() const noexcept { return revision_; }
     void add_node(Node node);
     bool remove_node(const NodeId& id);
     void add_edge(Edge edge);
@@ -34,6 +38,7 @@ public:
     void print_adjacency_matrix(std::ostream& output,
                                 WeightMetric metric = WeightMetric::Distance) const;
 private:
+    std::shared_ptr<const GraphRevision> revision_{std::make_shared<GraphRevision>()};
     std::vector<NodeId> sorted_node_ids() const;
     std::unordered_map<NodeId, Node> nodes_;
     std::unordered_map<NodeId, std::vector<Edge>> adjacency_;

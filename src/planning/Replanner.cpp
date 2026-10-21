@@ -8,7 +8,7 @@
 
 namespace logistics {
 ReplanResult Replanner::repair(const Graph& graph, const OrderPlanningContext& ctx,
-                               const OrderRoute& old, const std::set<RoadId>& triggers) {
+                               const OrderRoute& old, const std::set<RoadId>& triggers, ShortestPathCache* cache) {
     if (!graph.find_node(ctx.start_node) || !graph.find_node(ctx.warehouse) ||
         graph.find_node(ctx.warehouse)->type() != NodeType::Warehouse ||
         !std::isfinite(ctx.start_time) || ctx.start_time < 0 ||
@@ -40,7 +40,8 @@ ReplanResult Replanner::repair(const Graph& graph, const OrderPlanningContext& c
         const bool affected = std::any_of(roads.begin(), roads.end(), [&](const RoadId& id) { return triggers.count(id) != 0; });
         if (affected) {
             ++result.searched_legs;
-            const auto path = Dijkstra::shortest_path(graph, route.nodes.back(), old.nodes[end], WeightMetric::Time);
+            const auto path = cache ? cache->query(graph, route.nodes.back(), old.nodes[end], WeightMetric::Time)
+                                    : Dijkstra::shortest_path(graph, route.nodes.back(), old.nodes[end], WeightMetric::Time);
             if (!path.reachable) { throw std::runtime_error("affected leg has no traversable path"); }
             roads = path.road_sequence;
         }

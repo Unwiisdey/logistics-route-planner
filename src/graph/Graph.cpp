@@ -12,6 +12,7 @@ void Graph::add_node(Node node) {
     if (nodes_.find(id) != nodes_.end()) {
         throw std::invalid_argument("duplicate node id: " + id);
     }
+    revision_ = std::make_shared<GraphRevision>();
     nodes_.emplace(id, std::move(node));
     try {
         adjacency_.emplace(id, std::vector<Edge>{});
@@ -24,7 +25,9 @@ void Graph::add_node(Node node) {
 bool Graph::remove_node(const NodeId& id) {
     // The argument can itself be a reference returned by find_node().
     const NodeId removed_id = id;
-    if (nodes_.erase(removed_id) == 0) { return false; }
+    if (!find_node(removed_id)) { return false; }
+    revision_ = std::make_shared<GraphRevision>();
+    nodes_.erase(removed_id);
     adjacency_.erase(removed_id);
     for (auto& entry : adjacency_) {
         auto& edges = entry.second;
@@ -46,6 +49,7 @@ void Graph::add_edge(Edge edge) {
         throw std::invalid_argument("duplicate directed edge: " + edge.from_id() + " -> " + edge.to_id());
     }
     const NodeId from_id = edge.from_id();
+    revision_ = std::make_shared<GraphRevision>();
     adjacency_.at(from_id).push_back(std::move(edge));
 }
 
@@ -57,6 +61,7 @@ bool Graph::remove_edge(const NodeId& from_id, const NodeId& to_id) {
         return candidate.to_id() == to_id;
     });
     if (edge == edges.end()) { return false; }
+    revision_ = std::make_shared<GraphRevision>();
     edges.erase(edge);
     return true;
 }
@@ -67,7 +72,10 @@ void Graph::update_edge_traffic(const NodeId& from_id, const NodeId& to_id,
     if (entry != adjacency_.end()) {
         for (auto& edge : entry->second) {
             if (edge.to_id() == to_id) {
-                edge = edge.with_traffic(time, status);
+                auto updated = edge.with_traffic(time, status);
+                if (edge.time() == time && edge.traffic_status() == status) { return; }
+                revision_ = std::make_shared<GraphRevision>();
+                edge = std::move(updated);
                 return;
             }
         }

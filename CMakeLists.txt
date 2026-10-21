@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.16)
 
-project(LogisticsRoutePlanner VERSION 0.6.0 LANGUAGES CXX)
+project(LogisticsRoutePlanner VERSION 1.0.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -16,6 +16,7 @@ add_library(logistics_core STATIC
     src/config/ConfigLoader.cpp
     src/config/OrderConfigLoader.cpp
     src/planning/Dijkstra.cpp
+    src/planning/ShortestPathCache.cpp
     src/planning/Planner.cpp
     src/planning/DynamicOrder.cpp
     src/planning/Replanner.cpp
@@ -34,6 +35,7 @@ target_compile_features(logistics_core PUBLIC cxx_std_17)
 
 add_executable(logistics_app src/main.cpp)
 target_link_libraries(logistics_app PRIVATE logistics_core)
+target_compile_definitions(logistics_app PRIVATE LOGISTICS_VERSION="${PROJECT_VERSION}")
 
 function(logistics_warnings target)
     if(MSVC)

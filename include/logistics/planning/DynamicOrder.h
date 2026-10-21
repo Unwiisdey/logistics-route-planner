@@ -1,5 +1,6 @@
 #pragma once
 #include "logistics/planning/Planner.h"
+#include "logistics/planning/ShortestPathCache.h"
 #include <set>
 
 namespace logistics {
@@ -48,8 +49,9 @@ public:
     static Order urgent(OrderId id, NodeId warehouse, NodeId destination, double quantity,
                         Minutes received_at, Minutes deadline_after = 60);
     static InsertionResult evaluate(const Graph& graph, const OrderPlanningContext& context,
-                                    const std::vector<OrderAction>& sequence);
-    static InsertionResult insert(const Graph& graph, const OrderPlanningContext& context, const Order& order);
-    static InsertionResult initial(const Graph& graph, OrderPlanningContext context);
+                                    const std::vector<OrderAction>& sequence, ShortestPathCache* cache = nullptr);
+    static InsertionResult insert(const Graph& graph, const OrderPlanningContext& context, const Order& order,
+                                  ShortestPathCache* cache = nullptr);
+    static InsertionResult initial(const Graph& graph, OrderPlanningContext context, ShortestPathCache* cache = nullptr);
 };
 }  // namespace logistics

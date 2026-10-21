@@ -1,0 +1,9 @@
+workload,nodes,edges,cache_capacity,queries,hits,searches,elapsed_ms,checksum
+repeated_paths,30,120,0,450,0,450,4.002,14130.000
+repeated_paths,30,120,256,450,420,30,0.427,14130.000
+repeated_paths,300,1200,0,480,0,480,41.806,64515.000
+repeated_paths,300,1200,256,480,448,32,2.959,64515.000
+repeated_paths,1000,4000,0,480,0,480,226.479,354540.000
+repeated_paths,1000,4000,256,480,448,32,15.333,354540.000
+order_candidates,300,1200,0,729,0,729,31.587,563.000
+order_candidates,300,1200,256,729,572,157,9.680,563.000
