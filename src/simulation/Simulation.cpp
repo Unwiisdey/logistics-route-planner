@@ -35,13 +35,17 @@ std::ofstream open_csv(const std::filesystem::path& file) {
     return stream;
 }
 void state_header(std::ostream& out) {
-    out << "time,clock,status,node_id,edge_id,from_id,to_id,remaining_minutes,progress,x,y,load,completed_edges,delivered_count,late_count,penalty_points,finished,route_revision";
+    out << "time,clock,status,node_id,edge_id,from_id,to_id,remaining_minutes,progress,x,y,load,completed_edges,delivered_count,late_count,penalty_points,finished,route_revision,estimated_return,next_order,next_arrival,traffic_version,completed_traversals";
 }
 void state_row(std::ostream& out, const SimulationSnapshot& s) {
     out << s.time << ',' << csv(SimClock::format(s.time)) << ',' << to_string(s.status) << ','
         << csv(s.node_id.value_or("")) << ',' << csv(s.edge_id.value_or("")) << ',' << csv(s.from_id) << ',' << csv(s.to_id)
         << ',' << s.remaining_minutes << ',' << s.progress << ',' << s.x << ',' << s.y << ',' << s.load
-        << ',' << s.completed_edges << ',' << s.delivered_count << ',' << s.late_count << ',' << s.penalty_points << ',' << s.finished << ',' << s.route_revision;
+        << ',' << s.completed_edges << ',' << s.delivered_count << ',' << s.late_count << ',' << s.penalty_points << ',' << s.finished << ',' << s.route_revision << ',';
+    if (s.estimated_return) { out << *s.estimated_return; }
+    out << ',' << csv(s.next_order) << ',';
+    if (s.next_arrival) { out << *s.next_arrival; }
+    out << ',' << s.traffic_version << ',' << s.completed_traversals;
 }
 }  // namespace
 
@@ -147,6 +151,7 @@ void Simulation::leave_node() {
 void Simulation::finish_phase() {
     if (vehicle_.status() == VehicleStatus::Driving) {
         const auto road = vehicle_.segment()->road_id;
+        traversals_.emplace_back(clock_.now(), road);
         vehicle_.arrive();
         ++route_index_;
         record("arrive", road);
@@ -178,11 +183,13 @@ void Simulation::advance(Minutes minutes) {
     const double target = detail::checked_sum(clock_.now(), minutes);
     if (target == clock_.now()) { throw std::overflow_error("step is below numeric precision"); }
     while (!finished_ && clock_.now() < target) {
-        const double next = std::min(target, phase_end_);
+        const double next = traffic_ ? std::min({target, phase_end_, next_traffic_}) : std::min(target, phase_end_);
         clock_.advance(next - clock_.now());
         if (vehicle_.status() == VehicleStatus::Driving) {
             vehicle_.update_remaining(std::min(vehicle_.segment()->duration, std::max(0.0, phase_end_ - clock_.now())));
         }
+        // Traffic at an arrival boundary updates future roads before departing again.
+        if (traffic_ && clock_.now() == next_traffic_) { traffic_tick(); }
         if (clock_.now() == phase_end_) { finish_phase(); settle_instant_events(); }
     }
     if (!finished_) { record("tick"); }
@@ -200,7 +207,27 @@ SimulationSnapshot Simulation::snapshot() const {
     state.completed_edges = route_index_;
     state.finished = finished_;
     state.route_revision = revision_;
+    state.traffic_version = traffic_changes_.size();
+    state.completed_traversals = traversals_.size();
+    if (initial_traffic_graph_) {
+        const auto remaining = remaining_order_route();
+        state.future_nodes = remaining.nodes; state.future_roads = remaining.roads;
+    }
     state.remaining_minutes = state.status == VehicleStatus::Idle ? 0 : std::max(0.0, phase_end_ - clock_.now());
+    const auto* forecast = pending_route_ ? &*pending_route_ : (forecast_ ? &*forecast_ : nullptr);
+    if (forecast) {
+        state.estimated_return = finished_ ? clock_.now() : forecast->finish_time;
+        if (active_delivery_) {
+            const auto& delivery = deliveries_[*active_delivery_];
+            state.next_order = delivery.order_id; state.next_arrival = delivery.arrival;
+        } else {
+            for (const auto& stop : forecast->stops) {
+                if (stop.action.kind == OrderActionKind::Delivery && !deliveries_[order_index(stop.action.order_id)].delivered_at) {
+                    state.next_order = stop.action.order_id; state.next_arrival = stop.arrival; break;
+                }
+            }
+        }
+    }
     if (vehicle_.segment()) {
         state.from_id = vehicle_.segment()->from_id;
         state.to_id = vehicle_.segment()->to_id;
@@ -239,6 +266,8 @@ void Simulation::write_log(std::ostream& out) const {
         out << " remaining=" << s.remaining_minutes << " load=" << s.load
             << " delivered=" << s.delivered_count << " late=" << s.late_count << " penalty=" << s.penalty_points
             << " revision=" << s.route_revision;
+        if (s.estimated_return) { out << " return_eta=" << *s.estimated_return; }
+        if (s.next_arrival) { out << " next_order=" << s.next_order << " arrival_eta=" << *s.next_arrival; }
         if (!event.detail.empty()) { out << " detail=" << event.detail; }
         out << '\n';
     }
@@ -316,5 +345,6 @@ void Simulation::export_csv(const std::filesystem::path& directory) const {
         deliveries << '\n';
     }
     states.flush(); events.flush(); deliveries.flush(); settings.flush();
+    export_traffic(directory);
 }
 }  // namespace logistics

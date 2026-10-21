@@ -19,6 +19,10 @@ void Simulation::wait_until(Minutes time) {
     if (!finished_ || vehicle_.status() != VehicleStatus::Idle || !std::isfinite(time) || time < clock_.now()) {
         throw std::invalid_argument("wait_until requires a completed idle vehicle and a future time");
     }
+    while (traffic_ && next_traffic_ <= time) {
+        clock_.advance(next_traffic_ - clock_.now());
+        traffic_tick();
+    }
     clock_.advance(time - clock_.now());
     record("idle_wait"); history_.push_back(snapshot());
 }
@@ -153,6 +157,7 @@ void Simulation::apply_order_route(OrderRoute route) {
         throw std::logic_error("route activation does not match vehicle anchor");
     }
     route_.node_sequence = route.nodes; route_.road_sequence = route.roads;
+    forecast_ = route;
     route_.start_node_id = route.nodes.front();
     route_index_ = 0; finished_ = false;
     order_actions_.clear();

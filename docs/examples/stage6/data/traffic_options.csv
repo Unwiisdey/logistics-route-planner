@@ -1,0 +1,2 @@
+random_enabled,interval_minutes,fraction,min_multiplier,max_multiplier,seed
+1,0.5,0.10000000000000001,1.2,2,42

@@ -47,6 +47,11 @@ PathResult ShortestPaths::path_to(const NodeId& target) const {
 }
 
 ShortestPaths Dijkstra::single_source(const Graph& graph, const NodeId& source, WeightMetric metric) {
+    return search(graph, source, metric, std::nullopt);
+}
+
+ShortestPaths Dijkstra::search(const Graph& graph, const NodeId& source, WeightMetric metric,
+                               const std::optional<NodeId>& target) {
     if (!graph.find_node(source)) {
         throw std::invalid_argument("unknown shortest-path source: " + source);
     }
@@ -67,6 +72,7 @@ ShortestPaths Dijkstra::single_source(const Graph& graph, const NodeId& source, 
         if (distance != result.distances_.at(node_id)) {
             continue;  // Discard stale heap entries after a shorter relaxation.
         }
+        if (target && node_id == *target) { break; }  // Point-to-point queries stop at the settled target.
         // Sorting plus the heap's NodeId tie-break makes equal-cost paths reproducible.
         std::vector<const Edge*> outgoing;
         for (const auto& edge : graph.outgoing_edges(node_id)) {
@@ -99,7 +105,7 @@ PathResult Dijkstra::shortest_path(const Graph& graph, const NodeId& source,
     if (!graph.find_node(target)) {
         throw std::invalid_argument("unknown shortest-path target: " + target);
     }
-    return single_source(graph, source, metric).path_to(target);
+    return search(graph, source, metric, target).path_to(target);
 }
 
 }  // namespace logistics

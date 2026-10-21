@@ -4,9 +4,9 @@ C++17 数据结构课程设计项目，使用有向带权图模拟城市配送�
 
 ## 当前进度
 
-当前完成 **第 5 阶段：硬时间窗口、动态订单插入与取货载重约束**。新增独立订单模型、订单 JSON、严格初始规划和紧急订单插入。新任务只有在指定仓库取货、全程载重及所有剩余时间窗口均满足时才接受；否则保留原任务和路线并说明拒绝原因。
+当前完成 **第 6 阶段：模拟实时路况与自动局部重规划**。默认每 30 秒更新约 10% 道路；耗时相对上次值增加至少 20% 时，只重新搜索受影响的取送区间。支持路况日志、前后路径对比、预计到达时间，以及按历史版本显示拥堵和车辆位置的交互回放。
 
-按本次确认，penalty 继续使用**每个超时订单固定 10 分**（可配置）。严格模式在接受任务前检查窗口，运行中仍保留实际超时记录。旧静态规划和第 4 阶段记录迟到的仿真模式继续可用。实时路况触发的重规划属于后续范围。
+penalty 继续使用**每个超时订单固定 10 分**（可配置）。严格模式在接单前检查全部剩余窗口、取货及载重；后续拥堵可能使已接受订单迟到，此时提示风险并在实际完成时记录处罚。旧静态规划与固定路线仿真仍可使用。
 
 | 功能 | 状态 |
 | --- | --- |
@@ -21,8 +21,8 @@ C++17 数据结构课程设计项目，使用有向带权图模拟城市配送�
 | 车辆坐标、事件日志、路径进度着色与交互/GIF 回放 | 已完成 |
 | TimeWindow / Order / DynamicOrder、同点多单、订单 JSON | 已完成 |
 | 硬窗口规划、仓库取货、动态插入、全程载重与路线版本 | 已完成 |
-| 69 项 CTest 测试、14 项 Python 数据检查 | 已通过 |
-| 实时路况事件及其自动重规划、动态路线图形回放 | 后续阶段 |
+| 84 项 CTest 测试、23 项 Python 数据检查 | 已通过 |
+| TrafficSimulator / Replanner、局部修复、ETA、动态路线与路况回放 | 已完成 |
 
 `config/network.json` 保存节点默认信息；`config/orders.json` 保存实际订单数量、窗口、取货仓库和发布时间。同一配送点可有多笔独立订单，按订单 ID 跟踪；不会将途经节点自动算作已交付订单。车辆和时钟参数仍通过命令行配置。
 
@@ -54,11 +54,13 @@ C++17 数据结构课程设计项目，使用有向带权图模拟城市配送�
 │   ├── planning/Dijkstra.h          # 单源最短路径及重建结果
 │   ├── planning/Planner.h           # 最近邻单车辆规划请求
 │   ├── planning/DynamicOrder.h      # 硬约束候选评估与取送插入
+│   ├── planning/Replanner.h         # 仅重搜受影响的取送区间
 │   ├── planning/route_plan.hpp      # 完整道路与配送停靠序列
 │   ├── simulation/SimClock.h        # 可配置时间与步长
 │   ├── simulation/Simulation.h      # 事件推进、配送记录与快照
 │   ├── simulation/simulation_state.hpp # 兼容的视图快照入口
 │   ├── traffic/traffic_event.hpp
+│   ├── traffic/TrafficSimulator.h   # 路况采样、批量校验、20% 阈值
 │   ├── visualization/Visualizer.h  # 网络/路线 CSV 导出
 │   └── visualization/network_view.hpp
 ├── src/
@@ -74,12 +76,16 @@ C++17 数据结构课程设计项目，使用有向带权图模拟城市配送�
 │   ├── planning/Dijkstra.cpp
 │   ├── planning/Planner.cpp
 │   ├── planning/DynamicOrder.cpp
+│   ├── planning/Replanner.cpp
+│   ├── traffic/TrafficSimulator.cpp
 │   ├── simulation/SimClock.cpp
 │   ├── simulation/Simulation.cpp
 │   ├── simulation/SimulationOrders.cpp # 接单、承诺边界与路线切换
+│   ├── simulation/SimulationTraffic.cpp # 路况事件、预测与导出
 │   └── visualization/Visualizer.cpp
 ├── scripts/plot_network.py          # 使用 matplotlib 绘图
 ├── scripts/plot_simulation.py       # 车辆位置、进度着色与回放
+├── scripts/plot_traffic.py          # 拥堵、新路线、车辆与 ETA 回放
 ├── scripts/requirements.txt         # 可选 Python 依赖
 ├── tests/                           # 图、配置、规划、仿真和绘图数据测试
 ├── docs/requirements.md
@@ -124,13 +130,45 @@ Push-Location build
 Pop-Location
 ```
 
-已在 Windows、MSVC 19.29、Visual Studio 2019 Build Tools、x64 Debug 下完成编译，并通过全部 69 项 CTest 测试；另外通过 14 项 Python 数据检查。其他 C++ 工具链尚未实际验证。测试内容见 [测试说明](tests/README.md)。
+已在 Windows、MSVC 19.29、Visual Studio 2019 Build Tools、x64 Debug 下完成编译，并通过全部 84 项 CTest 测试；另外通过 23 项 Python 数据检查。其他 C++ 工具链尚未实际验证。测试内容见 [测试说明](tests/README.md)。
 
 Python 数据检查不需要安装 matplotlib：
 
 ```sh
 python -m unittest discover -s tests -p "test_plot*.py" -v
 ```
+
+## 实时路况与重规划：第 6 阶段
+
+```powershell
+.\build\Debug\logistics_app.exe --plan distance --simulate --scenario config/orders.json --capacity 100 --traffic --traffic-seed 42 --export exports/traffic
+python scripts/plot_traffic.py --input-dir exports/traffic --frame 80 --output exports/traffic.png
+python scripts/plot_traffic.py --input-dir exports/traffic --show
+```
+
+绘图依赖仍为 `scripts/requirements.txt` 中固定版本 matplotlib。也可将 `--plan distance` 改为 `--plan cost`，或对旧节点任务使用 `--simulate --traffic`。路况参数必须配合 `--plan` 和 `--simulate`；指定任一路况参数会自动启用路况。
+
+| 参数 | 默认值 | 含义 |
+| --- | --- | --- |
+| `--traffic-interval` | 30 | 模拟秒；内部使用 0.5 分钟，与 `--step` 独立 |
+| `--traffic-fraction` | 0.1 | 每批选取比例，范围 `(0,1]`；对可模拟道路数向上取整，不重复抽取 |
+| `--traffic-seed` | 42 | uint32 随机种子；同一工具链中复现相同道路与倍率序列 |
+
+可模拟道路为未关闭且初始耗时大于 0 的边。本例 98 条，每批选择 10 条；畅通边变拥堵，耗时取初始值的 1.2～2.0 倍，拥堵边恢复畅通时还原初始值，不累计乘倍率。C++ `TrafficOptions` 另提供倍率范围配置。随机道路扫描、边权更新不改变拓扑、距离或成本。
+
+触发基准为**变化前的耗时**：`(新耗时 - 旧耗时) / 旧耗时 >= 20%`（浮点比较容差 1e-12）。重复相同值、恢复畅通不触发搜索；外部事件从零增为正值会触发。低于阈值或恢复畅通仍会刷新当前路线 ETA。`Simulation::apply_traffic()` 可接入确定性事件；本阶段不接受封路或拓扑删除事件。
+
+**局部更新规则：** 锁定当前行驶段的入边耗时，车辆驶完该边再切换；等待/卸货中的服务也先完成。从衔接点起，按已接受的取货/配送动作划分区间，尾段为返仓区间。只有原区间包含触发道路时，才调用以**耗时**为权重的点到点 Dijkstra；其余区间原样保留。动作顺序不变、货物不瞬移。为避开拥堵，受影响区间可能增加距离/费用；初始规划和动态插单仍使用所选 distance/cost 策略。
+
+这是路线区间级增量更新，不重排全部订单、不重算所有区间、不运行全点对最短路。点到点搜索在目标出堆时停止；单个困难区间最坏仍可能访问整个连通分量。ETA 的后续时间累加会线性刷新，以传播等待与迟到风险，不属于重新搜索。恢复畅通不会主动寻找新的捷径。
+
+即使没有更快绕路，也会输出重规划原因与前后路径。已接订单不会因预测超时而被丢弃，记录 `window_risk`，实际完成时按每单固定处罚统计；无法满足所有旧订单窗口的新订单仍拒绝。ETA 是按当前权重的预测，未来路况可使其再次变化。
+
+导出包含：`traffic.csv`（路况前后值和触发标记）、`replans.csv`（原因、衔接时刻、前后路径、搜索区间数、返仓 ETA、预测超时订单）、`route_revisions.csv` / `route_stops.csv`（已生效路线）、`remaining_routes.csv`（每帧待执行路线，含尚待当前边结束的候选）、`traversals.csv`（跨版本已走道路）以及车辆、事件和订单 CSV。`traffic_options.csv` 保存随机参数。网络 CSV 保存启用路况时的初始权重；回放按每帧 `traffic_version` 重建当时路况，支持同一时刻多事件和倒退查看。
+
+图中红色道路表示拥堵，紫色表示更新后的剩余路线，橙色表示锁定的当前道路，绿色表示已走道路，星形表示车辆；显示下一配送到达 ETA 和返仓 ETA。`--show` 提供滑块和播放/暂停。界面回放 C++ 已导出的模拟数据，不是与正在运行的 C++ 进程实时通信。
+
+见 [第 6 阶段示例、日志与截图](docs/examples/stage6/README.md)。
 
 ## 硬约束与动态订单：第 5 阶段
 
@@ -161,7 +199,7 @@ python -m unittest discover -s tests -p "test_plot*.py" -v
 
 导出文件包括 `deliveries.csv`（订单完成及取货记录）、`insertions.csv`（接受/拒绝原因与候选新路径）、`route_revisions.csv`（每个生效版本的真实道路节点）、`route_stops.csv`（取送动作、预计时刻和载荷），以及状态、事件、参数 CSV。状态通过 `route_revision` 对应正确版本，避免用新路线解释旧位置；衔接前的候选路线在插入记录中保留。
 
-本阶段以文本和 CSV 展示动态新路线。第 4 阶段 Python 绘图器继续支持旧固定路线，遇到订单路线版本时会明确拒绝，避免错误高亮；动态版本图形回放留待后续可视化迭代。
+第 5 阶段原始示例以文本和 CSV 展示新路线。第 4 阶段绘图器仍只接受固定路线；第 6 阶段使用带 `--traffic` 的新导出和 `plot_traffic.py` 回放动态版本。
 
 C++ API：`Simulation(graph, warehouse, orders, start, options)` 创建严格仿真；`insert_order(order)` 返回接单结果；`DynamicOrder::urgent(..., received_at, 60)` 创建一小时截止的紧急单。`advance()` 推进、`snapshot()` 读取车辆、`route_revisions()` 读取生效路线。已返仓时可 `wait_until(time)` 等待之后发布的订单；仿真中途应使用 `advance()`。
 
@@ -211,7 +249,7 @@ python scripts/plot_simulation.py --input-dir exports/simulation --show
 
 默认示例：500 kg 货物、25 个配送点、08:00 出发，13:21 返仓；行驶 202 分钟、等待 69 分钟、卸货 50 分钟。D20 迟到 17 分钟、D25 迟到 1 分钟，各处罚 10 分，合计 20 分。见 [完整日志、快照和动画](docs/examples/stage4/README.md)。
 
-仿真持有图快照，外部修改不会悄悄改变在途行程。第 4 阶段兼容模式执行固定路线；第 5 阶段可通过订单接口衔接新路线，交通事件仍未实现。
+仿真持有独立图副本，外部修改不会悄悄改变在途行程。订单通过 `insert_order()` 插入，路况通过 `enable_traffic()` 或 `apply_traffic()` 进入统一时钟；两者都在当前边/服务结束后衔接路线。
 
 ## 静态路径规划与可视化（保留第 3 阶段模式）
 
@@ -292,7 +330,7 @@ Linux/macOS 使用 `.venv/bin/python` 和 `./build/logistics_app`，其余参数
 摘要示例：
 
 ```text
-Logistics Route Planner v0.5.0
+Logistics Route Planner v0.6.0
 Nodes: 30 | Edges: 98
 Warehouses: 2 | Delivery points: 25 | Transfer stations: 3
 Course size requirements: PASS
@@ -336,6 +374,7 @@ int main() {
 3. Dijkstra、两种策略、最近邻配送顺序、可选载重检查、CSV 与绘图：已完成。
 4. 时钟、车辆、逐步仿真、等待/卸货、固定处罚和固定路线车辆回放：已完成。
 5. 按最新要求完成硬窗口、独立订单 JSON、动态取送插入、载重和路线衔接。
-6. 后续：实时路况、拥堵触发重规划、动态路线可视化、优化及整体验证和展示。
+6. 实时路况、拥堵触发局部重规划、动态路线和 ETA 回放：已完成。
+7. 后续按需推进性能优化、课程整体报告及最终展示。
 
-静态模式使用最近邻，订单模式使用插入启发式，均不承诺全局最优。取货来源、固定处罚和在途衔接规则已明确；实时路况事件的阈值与在途封路规则尚待后续确定。仓库公开但项目自身尚未指定开源许可证；第三方库按其随附许可证使用。
+静态模式使用最近邻，订单模式使用插入启发式，均不承诺全局最优。实时路况处理畅通/拥堵，封路及运行中删边尚未实现。仓库公开但项目自身尚未指定开源许可证；第三方库按其随附许可证使用。

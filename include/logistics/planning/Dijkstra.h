@@ -38,6 +38,9 @@ public:
     static PathResult shortest_path(const Graph& graph, const NodeId& source,
                                     const NodeId& target,
                                     WeightMetric metric = WeightMetric::Distance);
+private:
+    static ShortestPaths search(const Graph& graph, const NodeId& source, WeightMetric metric,
+                                const std::optional<NodeId>& target);
 };
 
 }  // namespace logistics

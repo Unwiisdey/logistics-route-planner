@@ -4,6 +4,8 @@
 #include "logistics/visualization/Visualizer.h"
 #include "logistics/simulation/Simulation.h"
 #include <algorithm>
+#include <cmath>
+#include <limits>
 #include <filesystem>
 #include <iomanip>
 #include <iostream>
@@ -67,6 +69,8 @@ int main(int argc, char* argv[]) {
         bool simulation_options = false;
         bool explicit_departure = false;
         bool hard_windows = false;
+        bool traffic_enabled = false;
+        logistics::TrafficOptions traffic;
         std::optional<std::filesystem::path> scenario_path;
         logistics::SimulationOptions simulation;
         logistics::PlanningRequest request;
@@ -81,6 +85,8 @@ int main(int argc, char* argv[]) {
                              "Simulation: --simulate [--step MINUTES] [--unload-minutes MINUTES]\n"
                              "            [--late-penalty POINTS] [--vehicle-id ID]\n"
                              "            [--hard-windows | --scenario ORDER_JSON]\n"
+                             "Traffic: --traffic [--traffic-interval SECONDS] [--traffic-fraction 0..1]\n"
+                             "         [--traffic-seed UINT32] (defaults: 30 seconds, 0.1, 42)\n"
                              "Simulation defaults: start 480 (08:00), step 5, unload 2, capacity 1000,\n"
                              "fixed penalty 10 points per late order. Use --departure to change start.\n"
                              "Default: print adjacency list. Planning defaults to the first warehouse\n"
@@ -118,6 +124,19 @@ int main(int argc, char* argv[]) {
             } else if (argument == "--simulate") {
                 simulate = true;
                 planning_options = true;
+            } else if (argument == "--traffic") {
+                traffic_enabled = true; simulation_options = true;
+            } else if ((argument == "--traffic-interval" || argument == "--traffic-fraction" || argument == "--traffic-seed") && index + 1 < argc) {
+                const double value = parse_number(argv[++index], argument);
+                if (argument == "--traffic-interval") { traffic.interval_minutes = value / 60.0; }
+                else if (argument == "--traffic-fraction") { traffic.fraction = value; }
+                else {
+                    if (!std::isfinite(value) || value < 0 || value > std::numeric_limits<std::uint32_t>::max() || std::floor(value) != value) {
+                        throw std::invalid_argument("traffic seed must be a uint32 integer");
+                    }
+                    traffic.seed = static_cast<std::uint32_t>(value);
+                }
+                traffic_enabled = true; simulation_options = true;
             } else if (argument == "--hard-windows") {
                 hard_windows = true;
                 simulation_options = true;
@@ -160,7 +179,7 @@ int main(int argc, char* argv[]) {
             path = std::filesystem::path(argv[0]).parent_path() / "config" / "network.json";
         }
         const auto graph = logistics::ConfigLoader::load_network(path, check_size);
-        std::cout << "Logistics Route Planner v0.5.0\n"
+        std::cout << "Logistics Route Planner v0.6.0\n"
                   << "Nodes: " << graph.node_count() << " | Edges: " << graph.edge_count() << '\n'
                   << "Warehouses: " << graph.node_count(logistics::NodeType::Warehouse)
                   << " | Delivery points: " << graph.node_count(logistics::NodeType::DeliveryPoint)
@@ -192,6 +211,7 @@ int main(int argc, char* argv[]) {
                     if (order.release_time() < request.departure_time) { throw std::invalid_argument("dynamic order release precedes simulation start"); }
                 }
                 logistics::Simulation run(graph, request.warehouse_id, scenario.initial_orders, request.departure_time, simulation, request.strategy);
+                if (traffic_enabled) { run.enable_traffic(traffic); }
                 std::size_t next_order = 0;
                 while (!run.finished() || next_order < scenario.dynamic_orders.size()) {
                     if (next_order < scenario.dynamic_orders.size() && scenario.dynamic_orders[next_order].release_time() <= run.clock().now()) {
@@ -222,6 +242,7 @@ int main(int argc, char* argv[]) {
             print_plan(plan);
             if (simulate) {
                 logistics::Simulation run(graph, plan, simulation);
+                if (traffic_enabled) { run.enable_traffic(traffic); }
                 std::cout << "Simulation: fixed penalty=" << simulation.late_penalty_points
                           << " points/late order; window checked at unloading start.\n";
                 while (!run.finished()) { run.advance(); }

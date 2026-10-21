@@ -75,3 +75,21 @@ add_test(NAME app.hard_windows COMMAND logistics_app --plan distance --simulate 
 set_tests_properties(app.hard_windows PROPERTIES PASS_REGULAR_EXPRESSION "Simulation complete: delivered=2 late=0")
 add_test(NAME app.scenario_without_simulation COMMAND logistics_app --plan distance --scenario missing.json)
 set_tests_properties(app.scenario_without_simulation PROPERTIES WILL_FAIL TRUE)
+
+add_executable(traffic_tests traffic_tests.cpp)
+target_link_libraries(traffic_tests PRIVATE logistics_core)
+logistics_warnings(traffic_tests)
+foreach(case threshold sampling invalid_batch local_repair unrelated_and_current recovery_and_small_change
+             waiting_anchor unavoidable_late pending_insertion step_invariance legacy_and_export)
+    add_test(NAME traffic.${case} COMMAND traffic_tests ${case})
+    set_tests_properties(traffic.${case} PROPERTIES WORKING_DIRECTORY "${PROJECT_BINARY_DIR}")
+endforeach()
+add_test(NAME app.traffic COMMAND logistics_app --plan distance --simulate --traffic
+    --scenario "${PROJECT_SOURCE_DIR}/config/orders.json" --capacity 100 --export test_artifacts/traffic_cli)
+set_tests_properties(app.traffic PROPERTIES PASS_REGULAR_EXPRESSION "Simulation complete: delivered=4")
+add_test(NAME app.invalid_traffic_interval COMMAND logistics_app --plan distance --simulate --traffic-interval 0)
+set_tests_properties(app.invalid_traffic_interval PROPERTIES WILL_FAIL TRUE)
+add_test(NAME app.traffic_without_simulation COMMAND logistics_app --plan distance --traffic)
+set_tests_properties(app.traffic_without_simulation PROPERTIES WILL_FAIL TRUE)
+add_test(NAME app.invalid_traffic_seed COMMAND logistics_app --plan distance --simulate --traffic-seed -1)
+set_tests_properties(app.invalid_traffic_seed PROPERTIES WILL_FAIL TRUE)

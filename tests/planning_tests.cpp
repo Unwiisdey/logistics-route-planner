@@ -127,11 +127,12 @@ void floyd_comparison() {
                     const double distance = random() % 8;
                     const double cost = random() % 8;
                     const auto status = random() % 5 == 0 ? TrafficStatus::Closed : TrafficStatus::Clear;
-                    graph.add_edge(Edge(std::to_string(i) + "-" + std::to_string(j), std::to_string(i), std::to_string(j), distance, 1, cost, status));
+                    const double time = random() % 10;
+                    graph.add_edge(Edge(std::to_string(i) + "-" + std::to_string(j), std::to_string(i), std::to_string(j), distance, time, cost, status));
                 }
             }
         }
-        for (const auto metric : {WeightMetric::Distance, WeightMetric::Cost}) {
+        for (const auto metric : {WeightMetric::Distance, WeightMetric::Cost, WeightMetric::Time}) {
             std::vector<std::vector<double>> oracle(count, std::vector<double>(count, infinity));
             for (std::size_t i = 0; i < count; ++i) {
                 oracle[i][i] = 0;
@@ -148,9 +149,14 @@ void floyd_comparison() {
                 const auto paths = Dijkstra::single_source(graph, std::to_string(i), metric);
                 for (std::size_t j = 0; j < count; ++j) {
                     const auto path = paths.path_to(std::to_string(j));
+                    const auto targeted = Dijkstra::shortest_path(graph, std::to_string(i), std::to_string(j), metric);
+                    check(targeted.reachable == path.reachable && targeted.road_sequence == path.road_sequence,
+                          "target-stopped query differs from single source");
                     check(path.reachable == std::isfinite(oracle[i][j]), "reachability differs from Floyd-Warshall");
                     if (path.reachable) {
-                        check_near(metric == WeightMetric::Distance ? path.total_distance_km : path.total_cost_yuan, oracle[i][j]);
+                        const double value = metric == WeightMetric::Distance ? path.total_distance_km :
+                            metric == WeightMetric::Time ? path.total_travel_minutes : path.total_cost_yuan;
+                        check_near(value, oracle[i][j]);
                         check(path.node_sequence.size() <= count, "shortest path contains a cycle");
                     }
                 }

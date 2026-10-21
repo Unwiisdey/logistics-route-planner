@@ -1,0 +1,2 @@
+vehicle_id,capacity_kg,start_minutes,step_minutes,unload_minutes,fixed_late_penalty
+"V01",100,480,5,2,10

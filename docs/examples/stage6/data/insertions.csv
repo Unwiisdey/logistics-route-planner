@@ -1,0 +1,4 @@
+time,order_id,accepted,anchor_time,reason,proposed_path
+482,"URGENT01",1,486,"all remaining windows, pickup precedence and capacity checked","D06 -> W01 -> D01 -> D02 -> D03 -> D04 -> D05 -> D04 -> D03 -> D02 -> D01 -> D07 -> D06 -> D11 -> D16 -> D21 -> D16 -> D11 -> D12 -> D07 -> D01 -> D02 -> D03 -> D02 -> D01 -> W01"
+483,"OVERLOAD01",0,486,"no feasible insertion found; last constraint failure: pickup would exceed vehicle capacity",""
+484,"IMPOSSIBLE01",0,486,"no feasible insertion found; last constraint failure: time window missed: IMPOSSIBLE01",""

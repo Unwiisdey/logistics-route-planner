@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.16)
 
-project(LogisticsRoutePlanner VERSION 0.5.0 LANGUAGES CXX)
+project(LogisticsRoutePlanner VERSION 0.6.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -18,10 +18,13 @@ add_library(logistics_core STATIC
     src/planning/Dijkstra.cpp
     src/planning/Planner.cpp
     src/planning/DynamicOrder.cpp
+    src/planning/Replanner.cpp
+    src/traffic/TrafficSimulator.cpp
     src/visualization/Visualizer.cpp
     src/simulation/SimClock.cpp
     src/simulation/Simulation.cpp
     src/simulation/SimulationOrders.cpp
+    src/simulation/SimulationTraffic.cpp
 )
 target_include_directories(logistics_core PUBLIC
     "${CMAKE_CURRENT_SOURCE_DIR}/include"

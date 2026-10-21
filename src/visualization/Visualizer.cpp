@@ -114,8 +114,7 @@ std::vector<Totals> validate_plan(const Graph& graph, const RoutePlan& plan) {
 
 }  // namespace
 
-void Visualizer::export_csv(const Graph& graph, const RoutePlan& plan, const std::filesystem::path& directory) {
-    const auto totals = validate_plan(graph, plan);
+void Visualizer::export_network_csv(const Graph& graph, const std::filesystem::path& directory) {
     std::filesystem::create_directories(directory);
     std::vector<NodeId> node_ids;
     for (const auto& entry : graph.nodes()) { node_ids.push_back(entry.first); }
@@ -140,6 +139,12 @@ void Visualizer::export_csv(const Graph& graph, const RoutePlan& plan, const std
                   << ',' << edge->distance() << ',' << edge->time() << ',' << edge->cost() << ',' << to_string(edge->traffic_status()) << '\n';
         }
     }
+    nodes.flush(); edges.flush();
+}
+
+void Visualizer::export_csv(const Graph& graph, const RoutePlan& plan, const std::filesystem::path& directory) {
+    const auto totals = validate_plan(graph, plan);
+    export_network_csv(graph, directory);
     auto route = csv_file(directory / "route.csv");
     route << "step,node_id,incoming_edge_id,arrival_minutes,cumulative_distance,cumulative_time,cumulative_cost\n";
     for (std::size_t index = 0; index < plan.node_sequence.size(); ++index) {
@@ -161,8 +166,6 @@ void Visualizer::export_csv(const Graph& graph, const RoutePlan& plan, const std
             << ",nearest_neighbor_dijkstra,feasible," << csv_string(plan.start_node_id) << ',' << csv_string(plan.warehouse_id)
             << ',' << plan.departure_time << ',' << plan.requested_delivery_node_ids.size()
             << ',' << plan.total_distance_km << ',' << plan.total_travel_minutes << ',' << plan.total_cost_yuan << '\n';
-    nodes.flush();
-    edges.flush();
     route.flush();
     stops.flush();
     summary.flush();

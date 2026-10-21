@@ -2,6 +2,8 @@
 #include "logistics/planning/Planner.h"
 #include "logistics/simulation/SimClock.h"
 #include "logistics/planning/DynamicOrder.h"
+#include "logistics/planning/Replanner.h"
+#include "logistics/traffic/TrafficSimulator.h"
 #include <deque>
 #include <filesystem>
 #include <iosfwd>
@@ -48,6 +50,13 @@ struct SimulationSnapshot {
     double penalty_points{0.0};
     bool finished{false};
     std::size_t route_revision{0};
+    std::optional<Minutes> estimated_return;
+    std::optional<Minutes> next_arrival;
+    OrderId next_order;
+    std::size_t traffic_version{0};
+    std::size_t completed_traversals{0};
+    std::vector<NodeId> future_nodes;
+    std::vector<RoadId> future_roads;
 };
 struct SimulationEvent {
     SimulationSnapshot state;
@@ -66,15 +75,30 @@ struct RouteRevision {
     std::size_t id;
     OrderRoute route;
 };
+struct ReplanningRecord {
+    Minutes time;
+    Minutes anchor_time;
+    std::string reason;
+    std::vector<NodeId> before;
+    std::vector<NodeId> after;
+    std::size_t searched_legs;
+    Minutes estimated_return;
+    std::vector<OrderId> predicted_late;
+};
 
 class Simulation {
 public:
-    // Capture an immutable network/route snapshot; initial load includes every requested task.
+    // Own a network/route copy; later traffic changes enter only through Simulation.
     Simulation(Graph graph, RoutePlan route, SimulationOptions options = {});
     // Strict initial planning with independent order IDs (including several orders at one node).
     Simulation(Graph graph, const NodeId& warehouse, std::vector<Order> orders, Minutes start,
                SimulationOptions options = {}, RouteStrategy strategy = RouteStrategy::ShortestDistance);
     InsertionResult insert_order(const Order& order);
+    void enable_traffic(TrafficOptions options = {});
+    void apply_traffic(const std::vector<TrafficUpdate>& updates);
+    const Graph& network() const noexcept { return graph_; }
+    const std::vector<TrafficChange>& traffic_changes() const noexcept { return traffic_changes_; }
+    const std::vector<ReplanningRecord>& replanning_records() const noexcept { return replanning_records_; }
     void advance();
     void advance(Minutes minutes);
     void wait_until(Minutes time);  // Only after returning, for future released orders.
@@ -104,6 +128,10 @@ private:
     bool apply_pending_route();
     std::size_t order_index(const OrderId& id) const;
     void add_order_record(const Order& order, bool loaded);
+    void prepare_traffic();
+    void traffic_tick();
+    OrderRoute remaining_order_route() const;
+    void export_traffic(const std::filesystem::path& directory) const;
     Graph graph_;
     RoutePlan route_;
     SimulationOptions options_;
@@ -125,5 +153,12 @@ private:
     std::size_t revision_{0};
     std::vector<RouteRevision> revisions_;
     std::vector<OrderInsertionRecord> insertions_;
+    std::optional<TrafficSimulator> traffic_;
+    Minutes next_traffic_{0};
+    std::optional<Graph> initial_traffic_graph_;
+    std::optional<OrderRoute> forecast_;
+    std::vector<TrafficChange> traffic_changes_;
+    std::vector<ReplanningRecord> replanning_records_;
+    std::vector<std::pair<Minutes, RoadId>> traversals_;
 };
 }  // namespace logistics
