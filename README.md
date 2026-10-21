@@ -4,7 +4,7 @@
 
 **v1.0.0 最终课程设计版本**。使用 C++17 有向带权图模拟单车辆城市配送，包含订单、窗口、载重、动态插单、路况变化及局部重规划。课程原文需求映射见 [requirements.md](docs/requirements.md)。
 
-[用户手册](docs/user-manual.md) · [设计文档](docs/design.md) · [API](docs/api.md) · [测试报告](docs/test-report.md) · [演示与答辩](docs/demo/README.md) · [版本记录](CHANGELOG.md) · [GitHub Releases](https://github.com/Unwiisdey/logistics-route-planner/releases)
+[用户手册](docs/user-manual.md) · [设计文档](docs/design.md) · [API](docs/api.md) · [测试报告](docs/test-report.md) · [演示与答辩](docs/demo/README.md) · [项目验收管理](docs/project-management.md) · [版本记录](CHANGELOG.md) · [GitHub Releases](https://github.com/Unwiisdey/logistics-route-planner/releases)
 
 ## 运行效果
 
@@ -88,10 +88,10 @@ include/logistics/   model、graph、config、planning、simulation、traffic、
 src/                 C++17 实现与 CLI
 config/              network.json、orders.json、字段说明
 scripts/             网络/仿真/路况绘图，一键演示与性能统计
- tests/              单元、边界、集成、性能及 Python 回放测试
- docs/               设计、手册、API、测试报告、需求与历史阶段样例
- docs/demo/          答辩脚本、问答、截图、GIF
- docs/reports/       原始测试结果与性能数据
+tests/               单元、边界、集成、性能及 Python 回放测试
+docs/                设计、手册、API、测试报告、需求与历史阶段样例
+docs/demo/           答辩脚本、问答、截图、GIF
+docs/reports/        原始测试结果与性能数据
 .github/             双平台 CI、issue / PR 模板
 third_party/         nlohmann/json 3.12.0 及 MIT 许可证
 ```

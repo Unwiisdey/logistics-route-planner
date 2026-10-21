@@ -6,6 +6,8 @@
 
 原始证据：[Debug](reports/ctest-debug.txt)、[Release](reports/ctest-release.txt)、[Python](reports/python-tests.txt)、[5 轮性能原始数据](reports/benchmark/raw.csv)、[性能中位数](reports/benchmark/median.csv)。GitHub CI 同时配置 Ubuntu 和 Windows 的 Release 编译、CTest、Python、命令行到 CSV 集成与绘图；实际远端结果以 [Actions](https://github.com/Unwiisdey/logistics-route-planner/actions) 为准。
 
+**远端实测：** [CI run 39587424534](https://github.com/Unwiisdey/logistics-route-planner/actions/runs/39587424534) 已成功完成。Ubuntu 与 Windows 两个任务的编译、96 项 CTest、23 项 Python、端到端演示、matplotlib 安装与实际绘图均通过；核验代码提交为 `6f592be`。随后发布整理仅更新验收文档与链接。
+
 ## 覆盖矩阵
 
 | 层级 | 内容与判定依据 |
