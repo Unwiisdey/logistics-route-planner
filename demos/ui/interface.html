@@ -1,0 +1,152 @@
+<div id="logistics-preview" lang="zh-CN">
+  <header class="lp-header">
+    <div class="lp-brand"><span class="lp-mark" aria-hidden="true">L</span><div><h1>电商物流配送</h1><p>单车辆路径规划与动态仿真</p></div></div>
+    <span class="lp-preview">UI 预览 · 待接入 C++</span>
+  </header>
+  <div class="lp-toolbar" aria-label="回放控制">
+    <button type="button" data-action="reset">载入示例 / 重置</button>
+    <button type="button" data-action="route" aria-pressed="true">路线高亮：开</button>
+    <button type="button" data-action="play" class="lp-primary">开始回放</button>
+    <button type="button" data-action="step">单步 +1 分钟</button>
+    <label class="lp-speed">速度 <select data-field="speed" aria-label="回放速度"><option value="1">1×</option><option value="5" selected>5×</option><option value="15">15×</option></select></label>
+    <span class="lp-source">C++ 实际仿真记录 · 393 帧</span>
+  </div>
+  <main class="lp-main">
+    <section class="lp-map-panel" aria-label="配送网络">
+      <div class="lp-panel-head"><div><h2>城市配送网络</h2><span data-view="network-count" class="lp-muted"></span></div><label class="lp-check"><input type="checkbox" data-field="weights"> 显示耗时</label></div>
+      <div class="lp-map" data-view="map"></div>
+      <div class="lp-legend"><span>■ 仓库</span><span>● 配送点</span><span>◆ 中转站</span><span class="lp-key-future">━ 未来路线</span><span class="lp-key-active">━ 当前道路</span><span class="lp-key-jam">━ 拥堵</span><span class="lp-key-past">┄ 已走</span></div>
+      <div class="lp-inspect"><label>查看道路 <select data-field="road" aria-label="查看道路"><option value="">选择一条道路</option></select></label><span data-view="road-detail">箭头表示道路方向；标签为当前耗时（分钟）。</span></div>
+      <div class="lp-route"><span class="lp-muted">后续路径</span><p data-view="path"></p></div>
+    </section>
+    <aside class="lp-side" aria-label="车辆状态">
+      <div class="lp-panel-head"><h2>车辆 V01</h2><span class="lp-status" data-view="status">行驶中</span></div>
+      <div class="lp-clock" data-view="clock">08:00:00</div><div class="lp-muted">模拟时间</div>
+      <dl class="lp-facts"><div><dt>当前位置</dt><dd data-view="position"></dd></div><div><dt>剩余路段耗时</dt><dd data-view="remaining"></dd></div><div><dt>下一订单</dt><dd data-view="next"></dd></div><div><dt>预计到达</dt><dd data-view="eta"></dd></div><div><dt>预计返仓</dt><dd data-view="return"></dd></div></dl>
+      <div class="lp-load-head"><span>当前载重</span><span data-view="load"></span></div><div class="lp-load" role="progressbar" aria-label="车辆载重" aria-valuemin="0" aria-valuemax="100" aria-valuenow="60"><div data-view="load-bar"></div></div>
+      <div class="lp-stats"><div><strong data-view="completed">0 / 3</strong><span>已完成 / 已接单</span></div><div><strong data-view="late">0</strong><span>超时订单</span></div><div><strong data-view="penalty">0</strong><span>处罚分</span></div></div>
+      <div class="lp-version"><span data-view="revision"></span><span data-view="congestion"></span></div>
+      <details class="lp-form-box"><summary>＋ 新增订单 · 表单预览</summary>
+        <form data-view="order-form">
+          <div class="lp-form-grid"><label>取货仓库<select name="warehouse" required></select></label><label>配送点<select name="destination" required></select></label><label>货物量（kg）<input name="quantity" type="number" min="0.01" step="0.01" value="15" required></label><label>优先级<select name="priority"><option value="urgent">紧急</option><option value="normal">普通</option></select></label><label>窗口开始<input name="earliest" type="time" value="08:00" required></label><label>窗口结束<input name="latest" type="time" value="12:00" required></label></div>
+          <button type="submit" class="lp-primary">校验输入</button><p class="lp-muted lp-form-note">表单未连接 C++，不会改变当前回放。</p><p data-view="form-result" role="status" aria-live="polite"></p>
+        </form>
+      </details>
+    </aside>
+  </main>
+  <section class="lp-timeline" aria-label="时间轴">
+    <div class="lp-time-head"><strong data-view="timeline-time">08:00:00</strong><span data-view="frame-label"></span><span>10:56:08</span></div>
+    <input data-field="timeline" type="range" min="0" max="392" value="0" step="1" aria-label="选择回放帧">
+    <div class="lp-jumps"><span class="lp-muted">查看关键事件</span><button type="button" data-jump="482">08:02 紧急插单</button><button type="button" data-jump="483">08:03 超载拒单</button><button type="button" data-jump="484">08:04 窗口拒单</button><button type="button" data-jump="485">08:05 拥堵调整</button><button type="button" data-jump="end">配送结束</button></div>
+  </section>
+  <div class="lp-bottom">
+    <section class="lp-orders"><div class="lp-panel-head"><h2>订单列表</h2><span class="lp-muted">按模拟时刻更新</span></div><div class="lp-table-wrap"><table><thead><tr><th>订单 / 配送点</th><th>货物量</th><th>时间窗口</th><th>状态</th></tr></thead><tbody data-view="orders"></tbody></table></div></section>
+    <section class="lp-events"><div class="lp-panel-head"><h2>事件日志</h2><span class="lp-muted" data-view="event-count"></span></div><ol data-view="events"></ol><div data-view="replan-detail" class="lp-replan"></div></section>
+  </div>
+  <footer class="lp-footer"><span>真实数据回放 · 单车 / 载重 100 kg / 超时每单处罚 10 分</span><span data-view="notice" role="status" aria-live="polite">就绪，点击“开始回放”查看配送过程。</span></footer>
+</div>
+<style>
+#logistics-preview{color-scheme:light dark;--lp-bg:light-dark(#f3f6f9,#121c28);--lp-panel:light-dark(#ffffff,#1a293a);--lp-text:light-dark(#1c3248,#e8eff6);--lp-muted:light-dark(#586d80,#afbdcf);--lp-line:light-dark(#dce5ed,#35475a);--lp-teal:light-dark(#097d77,#62d5c8);--lp-nav:light-dark(#17344a,#102334);--lp-accent:light-dark(#e6f5f1,#20413f);--lp-purple:light-dark(#7353bd,#c1a3ff);--lp-red:light-dark(#c44249,#ff8c92);--lp-orange:light-dark(#b86216,#ffc083);--lp-green:light-dark(#4b8e7b,#88bdaa);--lp-map:light-dark(#f6f9fc,#152231);--lp-road:light-dark(#c1cedb,#53657b);background:var(--lp-bg);color:var(--lp-text);font-family:Inter,"Segoe UI","Microsoft YaHei",sans-serif;font-size:14px;line-height:1.5;border-radius:16px;overflow:hidden;max-width:1400px;margin:auto;text-align:left}
+#logistics-preview *{box-sizing:border-box}#logistics-preview h1,#logistics-preview h2,#logistics-preview p{margin:0}#logistics-preview h1{font-size:20px;font-weight:500;letter-spacing:.03em}#logistics-preview h2{font-size:14px;font-weight:500}#logistics-preview button,#logistics-preview input,#logistics-preview select{font:inherit}#logistics-preview button,#logistics-preview select,#logistics-preview input:not([type=range]):not([type=checkbox]){border:1px solid var(--lp-line);border-radius:7px;background:var(--lp-panel);color:var(--lp-text);padding:7px 10px;min-width:0}#logistics-preview button:hover{background:var(--lp-accent)}#logistics-preview button:disabled{opacity:.45}#logistics-preview button:focus-visible,#logistics-preview select:focus-visible,#logistics-preview input:focus-visible,#logistics-preview summary:focus-visible{outline:3px solid var(--lp-teal);outline-offset:2px}#logistics-preview .lp-primary{background:var(--lp-teal);color:light-dark(#ffffff,#102826);border-color:transparent}#logistics-preview .lp-primary:hover{filter:brightness(.94)}
+#logistics-preview .lp-header{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:22px 24px;background:var(--lp-nav);color:#f0f7fc}#logistics-preview .lp-brand{display:flex;align-items:center;gap:12px}#logistics-preview .lp-brand p{font-size:12px;color:#c0d1df;margin-top:3px}#logistics-preview .lp-mark{display:grid;place-items:center;width:38px;height:38px;border-radius:10px;background:#178b83;font-size:24px;font-weight:500}#logistics-preview .lp-preview{font-size:12px;padding:5px 10px;border:1px solid #567083;border-radius:20px;margin-right:76px;white-space:nowrap}#logistics-preview .lp-toolbar{display:flex;align-items:center;flex-wrap:wrap;gap:8px;padding:14px 20px;background:var(--lp-panel);border-bottom:1px solid var(--lp-line)}#logistics-preview .lp-speed{display:flex;align-items:center;gap:6px}#logistics-preview .lp-source{margin-left:auto;font-size:12px;color:var(--lp-muted)}#logistics-preview .lp-main{display:grid;grid-template-columns:minmax(0,1fr) 290px;gap:16px;padding:16px 20px 0}#logistics-preview .lp-map-panel,#logistics-preview .lp-side,#logistics-preview .lp-orders,#logistics-preview .lp-events{background:var(--lp-panel);border:1px solid var(--lp-line);border-radius:11px;min-width:0}#logistics-preview .lp-panel-head{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:15px 17px}#logistics-preview .lp-muted{color:var(--lp-muted);font-size:12px}#logistics-preview .lp-panel-head .lp-muted{display:block}#logistics-preview .lp-check{font-size:12px;white-space:nowrap}#logistics-preview .lp-map{height:390px;background:var(--lp-map);margin:0 12px;border-radius:8px;overflow:hidden}#logistics-preview .lp-map svg{display:block;width:100%;height:100%}#logistics-preview .lp-map text{font-family:inherit;fill:var(--lp-text);font-size:11px}#logistics-preview .lp-map .lp-node-label{paint-order:stroke;stroke:var(--lp-map);stroke-width:3px;stroke-linejoin:round}#logistics-preview .lp-legend{display:flex;flex-wrap:wrap;gap:8px 14px;padding:12px 17px;font-size:12px;color:var(--lp-muted)}#logistics-preview .lp-key-future{color:var(--lp-purple)}#logistics-preview .lp-key-active{color:var(--lp-orange)}#logistics-preview .lp-key-jam{color:var(--lp-red)}#logistics-preview .lp-key-past{color:var(--lp-green)}#logistics-preview .lp-inspect{display:flex;align-items:center;gap:9px;flex-wrap:wrap;padding:9px 17px;border-top:1px solid var(--lp-line);font-size:12px}#logistics-preview .lp-inspect label{display:flex;gap:6px;align-items:center}#logistics-preview .lp-inspect select{max-width:155px;padding:4px 6px}#logistics-preview .lp-inspect span{color:var(--lp-muted)}#logistics-preview .lp-route{padding:8px 17px 14px}#logistics-preview .lp-route p{font-size:12px;margin-top:4px;overflow-wrap:anywhere;color:var(--lp-purple)}#logistics-preview .lp-side{padding-bottom:16px}#logistics-preview .lp-status{background:var(--lp-accent);color:var(--lp-teal);padding:3px 8px;border-radius:5px;font-size:12px}#logistics-preview .lp-clock{font-size:34px;font-weight:500;letter-spacing:.01em;font-variant-numeric:tabular-nums;padding:0 17px}#logistics-preview .lp-clock+.lp-muted{padding:0 17px}#logistics-preview .lp-facts{margin:17px 17px 14px}#logistics-preview .lp-facts>div{display:flex;justify-content:space-between;gap:12px;margin:8px 0}#logistics-preview dt{color:var(--lp-muted);font-size:12px}#logistics-preview dd{margin:0;text-align:right;font-variant-numeric:tabular-nums;font-size:12px;overflow-wrap:anywhere}#logistics-preview .lp-load-head{display:flex;justify-content:space-between;margin:0 17px 7px;font-size:12px}#logistics-preview .lp-load{margin:0 17px;height:6px;background:var(--lp-bg);border-radius:3px;overflow:hidden}#logistics-preview .lp-load>div{height:100%;background:var(--lp-teal)}#logistics-preview .lp-stats{display:grid;grid-template-columns:1.4fr 1fr 1fr;margin:19px 17px 14px;gap:8px}#logistics-preview .lp-stats strong{display:block;font-size:20px;font-weight:500;font-variant-numeric:tabular-nums}#logistics-preview .lp-stats span{font-size:11px;color:var(--lp-muted)}#logistics-preview .lp-version{margin:0 17px;display:flex;justify-content:space-between;font-size:12px;color:var(--lp-muted);gap:8px}#logistics-preview .lp-form-box{margin:17px 17px 0;padding-top:14px;border-top:1px solid var(--lp-line)}#logistics-preview summary{color:var(--lp-teal);font-weight:500}#logistics-preview .lp-form-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:14px 0}#logistics-preview .lp-form-grid label{display:grid;gap:4px;font-size:12px;min-width:0}#logistics-preview .lp-form-grid input,#logistics-preview .lp-form-grid select{width:100%;font-size:14px;padding:6px}#logistics-preview .lp-form-note{margin-top:8px}#logistics-preview [data-view=form-result]{font-size:12px;margin-top:8px;overflow-wrap:anywhere}#logistics-preview .lp-error{color:var(--lp-red)}#logistics-preview .lp-success{color:var(--lp-teal)}
+#logistics-preview .lp-timeline{padding:18px 20px 14px}#logistics-preview .lp-time-head{display:flex;justify-content:space-between;gap:8px;font-size:12px;font-variant-numeric:tabular-nums}#logistics-preview .lp-time-head strong{font-weight:500;color:var(--lp-teal)}#logistics-preview .lp-time-head span{color:var(--lp-muted)}#logistics-preview input[type=range]{display:block;width:100%;margin:8px 0 12px;accent-color:var(--lp-teal)}#logistics-preview .lp-jumps{display:flex;flex-wrap:wrap;gap:6px;align-items:center}#logistics-preview .lp-jumps button{font-size:12px;padding:5px 8px}#logistics-preview .lp-bottom{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr);gap:16px;padding:0 20px 18px}#logistics-preview .lp-table-wrap{overflow:auto}#logistics-preview table{border-collapse:collapse;width:100%;font-size:12px;text-align:left}#logistics-preview th{font-weight:500;color:var(--lp-muted);background:var(--lp-map)}#logistics-preview td,#logistics-preview th{padding:10px 14px;border-bottom:1px solid var(--lp-line);white-space:nowrap}#logistics-preview tbody tr:last-child td{border-bottom:0}#logistics-preview td small{display:block;color:var(--lp-muted);font-size:11px}#logistics-preview .lp-order-state{display:inline-block;padding:2px 6px;border-radius:4px;background:var(--lp-bg)}#logistics-preview .lp-order-state.done{background:var(--lp-accent);color:var(--lp-teal)}#logistics-preview .lp-order-state.rejected{color:var(--lp-red)}#logistics-preview .lp-events ol{list-style:none;margin:0;padding:0 17px 12px}#logistics-preview .lp-events li{padding:8px 0;border-bottom:1px solid var(--lp-line)}#logistics-preview .lp-events li:last-child{border-bottom:0}#logistics-preview .lp-events li button{display:block;border:0;background:transparent;padding:0;text-align:left;width:100%;font-size:12px}#logistics-preview .lp-events time{color:var(--lp-muted);font-variant-numeric:tabular-nums;margin-right:8px}#logistics-preview .lp-events small{display:block;color:var(--lp-muted);font-size:11px;margin-top:3px;overflow-wrap:anywhere}#logistics-preview .lp-replan{font-size:12px;padding:0 17px 14px;overflow-wrap:anywhere;color:var(--lp-muted)}#logistics-preview .lp-replan p{margin-top:6px}#logistics-preview .lp-footer{padding:12px 20px;border-top:1px solid var(--lp-line);display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;color:var(--lp-muted);font-size:12px}
+@media(max-width:900px){#logistics-preview .lp-main{grid-template-columns:minmax(0,1fr) 260px}#logistics-preview .lp-source{width:100%;margin:0}#logistics-preview .lp-bottom{grid-template-columns:1fr 1fr}#logistics-preview .lp-map{height:370px}}
+@media(max-width:720px){#logistics-preview .lp-main,#logistics-preview .lp-bottom{grid-template-columns:1fr}#logistics-preview .lp-header{padding:16px;align-items:flex-start;flex-wrap:wrap}#logistics-preview .lp-preview{margin:0}#logistics-preview .lp-main{padding:12px 12px 0}#logistics-preview .lp-bottom{padding:0 12px 14px}#logistics-preview .lp-toolbar,#logistics-preview .lp-timeline{padding:12px}#logistics-preview .lp-side{display:block}#logistics-preview .lp-map{height:355px}#logistics-preview .lp-stats{max-width:400px}#logistics-preview .lp-form-grid{grid-template-columns:1fr 1fr}#logistics-preview .lp-form-grid input,#logistics-preview .lp-form-grid select{font-size:16px}#logistics-preview .lp-footer{padding:12px}#logistics-preview .lp-brand{gap:9px}#logistics-preview h1{font-size:18px}#logistics-preview .lp-events ol{padding-bottom:6px}}
+@media(pointer:coarse){#logistics-preview button,#logistics-preview summary,#logistics-preview select{min-height:44px}#logistics-preview input[type=range]{min-height:28px}}
+</style>
+<script>
+(() => {
+  const root = document.getElementById('logistics-preview');
+  const data = /*REPLAY_DATA*/null;
+  const view = name => root.querySelector(`[data-view="${name}"]`);
+  const field = name => root.querySelector(`[data-field="${name}"]`);
+  const action = name => root.querySelector(`[data-action="${name}"]`);
+  const nodes = new Map(data.nodes.map(n=>[n.id,n]));
+  const edges = new Map(data.edges.map(e=>[e.id,e]));
+  const state = {index:0, timer:null, highlight:true, playTime:480, road:'', weights:false};
+  const saved = window.openai?.widgetState?.privateContent;
+  if(saved && Number.isInteger(saved.index)) state.index=Math.max(0,Math.min(data.frames.length-1,saved.index));
+  if(saved && typeof saved.highlight==='boolean') state.highlight=saved.highlight;
+  function save(){try{window.openai?.setWidgetState?.({modelContent:{preview:'电商物流配送 UI',time:clock(frame().time)},privateContent:{index:state.index,highlight:state.highlight}})?.catch(()=>{});}catch{}}
+  const frame = ()=>data.frames[state.index];
+  const clock = value => {if(value===null||value===undefined)return '—';const s=Math.round(value*60);return `${String(Math.floor(s/3600)).padStart(2,'0')}:${String(Math.floor(s/60)%60).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`;};
+  const hm = value => clock(value).slice(0,5);
+  const esc = value => String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const set = (name,value)=>{view(name).textContent=value;};
+  const statusNames={driving:'行驶中',idle:'空闲',waiting:'等待窗口',unloading:'卸货中'};
+  const option = (value,text)=>{const e=document.createElement('option');e.value=value;e.textContent=text;return e;};
+  edges.forEach(e=>field('road').append(option(e.id,`${e.id} · ${e.from_id}→${e.to_id}`)));
+  nodes.forEach(n=>{if(n.type==='warehouse')root.querySelector('[name=warehouse]').append(option(n.id,n.id));if(n.type==='delivery_point')root.querySelector('[name=destination]').append(option(n.id,n.id));});
+  const result = view('form-result');
+  function stop(){if(state.timer)clearInterval(state.timer);state.timer=null;action('play').textContent='开始回放';}
+  function seek(time){stop();let i=0;while(i+1<data.frames.length&&data.frames[i+1].time<=time+1e-8)i++;state.index=i;state.playTime=frame().time;render();save();}
+  const timelineEvents=[{time:480,title:'车辆从 W01 出发',detail:'初始 3 单，装载 60 kg',type:'start'}];
+  data.insertions.forEach(x=>timelineEvents.push({time:x.time,title:x.accepted?`接受紧急订单 ${x.order_id}`:`拒绝订单 ${x.order_id}`,detail:x.accepted?'可行性检查通过；完成当前道路后衔接新路线。':x.order_id==='OVERLOAD01'?'取货将超过载重上限。':'无法在订单时间窗口内服务。',type:'order'}));
+  data.replans.forEach(x=>timelineEvents.push({time:x.time,title:x.searched?`拥堵触发区间修复 · ${x.searched} 段`:'路况更新 · 后续路径不受影响',detail:x.searched?`按最短耗时修复，预计返仓 ${clock(x.return)}`:`保留原路径并刷新预计时间，返仓 ${clock(x.return)}`,type:'replan',record:x}));
+  data.orders.filter(o=>o.completed!==null).forEach(o=>timelineEvents.push({time:o.completed,title:`完成配送 ${o.id}`,detail:`${o.delivery_node_id} · ${o.quantity} kg`,type:'delivery'}));
+  timelineEvents.push({time:data.frames.at(-1).time,title:'全部已接订单完成，返回 W01',detail:'空车返仓；超时 0 单，处罚 0 分。',type:'end'});
+  timelineEvents.sort((a,b)=>a.time-b.time);
+  function currentEdges(f){const map=new Map(data.edges.map(e=>[e.id,{...e}]));for(let i=0;i<f.traffic_version;i++){const [id,time,status]=data.changes[i];Object.assign(map.get(id),{time,traffic_status:status});}return map;}
+  function svgElement(tag,attrs={},text){const e=document.createElementNS('http://www.w3.org/2000/svg',tag);for(const [k,v] of Object.entries(attrs))e.setAttribute(k,v);if(text!==undefined)e.textContent=text;return e;}
+  function draw(f,roads){
+    const box=view('map'),width=Math.max(250,Math.round(box.getBoundingClientRect().width)),height=box.clientHeight||390;
+    const xs=data.nodes.map(n=>+n.x),ys=data.nodes.map(n=>+n.y),xmin=Math.min(...xs),xmax=Math.max(...xs),ymin=Math.min(...ys),ymax=Math.max(...ys);
+    const padX=32,padY=33,point=n=>({x:padX+(+n.x-xmin)/(xmax-xmin||1)*(width-padX*2),y:height-padY-(+n.y-ymin)/(ymax-ymin||1)*(height-padY*2)});
+    const svg=svgElement('svg',{viewBox:`0 0 ${width} ${height}`,role:'img','aria-label':`配送网络，车辆位于 ${f.node_id||f.from_id+' 到 '+f.to_id}；模拟时间 ${clock(f.time)}`});
+    svg.append(svgElement('title',{},'有向配送网络与车辆位置'));
+    const defs=svgElement('defs');const colors={normal:'var(--lp-road)',future:'var(--lp-purple)',jam:'var(--lp-red)',active:'var(--lp-orange)',past:'var(--lp-green)',selected:'var(--lp-teal)'};
+    for(const [key,color] of Object.entries(colors)){const m=svgElement('marker',{id:`lp-arrow-${key}`,viewBox:'0 0 6 6',refX:5,refY:3,markerWidth:5,markerHeight:5,orient:'auto',markerUnits:'userSpaceOnUse'});m.append(svgElement('path',{d:'M0,0 L6,3 L0,6 Z',fill:color}));defs.append(m);}svg.append(defs);
+    for(let x=padX;x<width-padX;x+=35)svg.append(svgElement('line',{x1:x,y1:12,x2:x,y2:height-12,stroke:'var(--lp-line)','stroke-opacity':.45,'stroke-width':.5}));
+    for(let y=padY;y<height-padY;y+=35)svg.append(svgElement('line',{x1:12,y1:y,x2:width-12,y2:y,stroke:'var(--lp-line)','stroke-opacity':.45,'stroke-width':.5}));
+    const completed=new Set(data.traversals.slice(0,f.completed_traversals)),future=new Set(f.future),geometries=new Map();
+    for(const e of roads.values()){
+      const a=point(nodes.get(e.from_id)),b=point(nodes.get(e.to_id)),dx=b.x-a.x,dy=b.y-a.y,len=Math.hypot(dx,dy),ux=dx/len,uy=dy/len;
+      const start={x:a.x+ux*11,y:a.y+uy*11},end={x:b.x-ux*13,y:b.y-uy*13},control={x:(a.x+b.x)/2-uy*9,y:(a.y+b.y)/2+ux*9};
+      const d=`M${start.x},${start.y} Q${control.x},${control.y} ${end.x},${end.y}`;geometries.set(e.id,{d,x:(start.x+2*control.x+end.x)/4,y:(start.y+2*control.y+end.y)/4});
+      let key=e.traffic_status==='congested'?'jam':completed.has(e.id)?'past':'normal';
+      const p=svgElement('path',{d,fill:'none',stroke:colors[key],'stroke-width':key==='normal'?1:1.6,'stroke-dasharray':key==='past'?'3 2':'none','marker-end':`url(#lp-arrow-${key})`});
+      p.append(svgElement('title',{},`${e.id}：${e.from_id}→${e.to_id}，${Number(e.time).toFixed(1)} 分钟`));svg.append(p);
+    }
+    const overlay=(id,key,strokeWidth)=>{const g=geometries.get(id);if(!g)return;svg.append(svgElement('path',{d:g.d,fill:'none',stroke:colors[key],'stroke-width':strokeWidth,'stroke-dasharray':key==='future'&&roads.get(id).traffic_status==='congested'?'5 4':'none','marker-end':`url(#lp-arrow-${key})`}));};
+    if(state.highlight)future.forEach(id=>overlay(id,'future',2.7));
+    if(state.road)overlay(state.road,'selected',3.2);if(f.edge_id)overlay(f.edge_id,'active',3.8);
+    if(state.weights){for(const e of roads.values()){if(width<520&&e.id!==f.edge_id&&e.id!==state.road)continue;const g=geometries.get(e.id);svg.append(svgElement('text',{x:g.x,y:g.y-3,'text-anchor':'middle',class:'lp-node-label'},Number(e.time).toFixed(1)));}}
+    const currentTargets=new Set(data.orders.filter(o=>o.accepted&&o.release_time<=f.time&&(o.completed===null||o.completed>f.time)).map(o=>o.delivery_node_id));
+    for(const n of nodes.values()){
+      const p=point(n),wh=n.type==='warehouse',transfer=n.type==='transfer_station',fill=wh?'var(--lp-text)':transfer?'var(--lp-orange)':currentTargets.has(n.id)?'var(--lp-teal)':'var(--lp-panel)';
+      const shape=wh?svgElement('rect',{x:p.x-7,y:p.y-7,width:14,height:14,rx:2,fill}):transfer?svgElement('polygon',{points:`${p.x},${p.y-7} ${p.x+7},${p.y} ${p.x},${p.y+7} ${p.x-7},${p.y}`,fill}):svgElement('circle',{cx:p.x,cy:p.y,r:5.5,fill,stroke:'var(--lp-teal)','stroke-width':1.5});
+      svg.append(shape);svg.append(svgElement('text',{x:p.x,y:p.y+21,'text-anchor':'middle',class:'lp-node-label'},n.id));
+    }
+    const vehicle=point(f);svg.append(svgElement('circle',{cx:vehicle.x,cy:vehicle.y,r:13,fill:'var(--lp-teal)',stroke:'var(--lp-panel)','stroke-width':3}));svg.append(svgElement('text',{x:vehicle.x,y:vehicle.y+4,'text-anchor':'middle',style:'fill:var(--lp-panel);font-weight:500'},'V'));
+    box.replaceChildren(svg);
+  }
+  function render(){
+    const f=frame(),roads=currentEdges(f),known=data.orders.filter(o=>o.release_time<=f.time+1e-8),accepted=known.filter(o=>o.accepted);
+    field('timeline').value=state.index;field('timeline').setAttribute('aria-valuetext',clock(f.time));set('clock',clock(f.time));set('timeline-time',clock(f.time));set('frame-label',`${state.index+1} / ${data.frames.length} 帧`);
+    set('network-count',`${nodes.size} 个节点 · ${edges.size} 条有向道路`);set('status',f.finished?'配送完成':statusNames[f.status]);
+    set('position',f.node_id||`${f.from_id} → ${f.to_id}`);set('remaining',f.status==='driving'?`${f.remaining_minutes.toFixed(1)} 分钟`:'—');set('next',f.next_order||'—');set('eta',clock(f.next_arrival));set('return',clock(f.estimated_return));set('load',`${f.load.toFixed(0)} / ${data.capacity} kg`);view('load-bar').style.width=`${f.load/data.capacity*100}%`;root.querySelector('.lp-load').setAttribute('aria-valuenow',f.load);
+    set('completed',`${f.delivered_count} / ${accepted.length}`);set('late',f.late_count);set('penalty',f.penalty_points);set('revision',`生效路线 v${f.route_revision}`);set('congestion',`拥堵 ${[...roads.values()].filter(e=>e.traffic_status==='congested').length} 条`);
+    action('route').textContent=`路线高亮：${state.highlight?'开':'关'}`;action('route').setAttribute('aria-pressed',state.highlight);action('step').disabled=!!f.finished;
+    const ids=f.future.map(id=>edges.get(id)).filter(Boolean);set('path',ids.length?[ids[0].from_id,...ids.map(e=>e.to_id)].join(' → '):f.finished?'已返回 W01，全部已接订单完成。':'完成当前阶段后衔接后续动作。');
+    const selected=roads.get(state.road);set('road-detail',selected?`${selected.from_id} → ${selected.to_id} · ${Number(selected.distance).toFixed(1)} km · ${Number(selected.time).toFixed(1)} 分钟 · ${selected.traffic_status==='congested'?'拥堵':'畅通'}`:'箭头表示道路方向；标签为当前耗时（分钟）。');
+    view('orders').innerHTML=data.orders.map(o=>{let label='待发布',cls='',sub=o.priority==='urgent'?'紧急':'普通';if(o.release_time<=f.time+1e-8){if(!o.accepted){label='已拒绝';cls='rejected';sub=o.id==='OVERLOAD01'?'超载':'窗口不可行';}else if(o.completed!==null&&o.completed<=f.time+1e-8){label='已完成';cls='done';sub=`完成 ${hm(o.completed)}`;}else if(o.service!==null&&o.service<=f.time+1e-8){label='卸货中';}else if(o.pickup!==null&&o.pickup>f.time+1e-8){label='待取货';}else{label='配送中';}}return `<tr><td>${esc(o.id)}<small>${esc(o.delivery_node_id)} · ${esc(sub)}</small></td><td>${o.quantity} kg</td><td>${hm(o.time_window.earliest)}–${hm(o.time_window.latest)}</td><td><span class="lp-order-state ${cls}">${label}</span></td></tr>`;}).join('');
+    const events=timelineEvents.filter(e=>e.time<=f.time+1e-8);set('event-count',`已发生 ${events.length} 条`);
+    view('events').innerHTML=events.slice(-5).reverse().map(e=>`<li><button type="button" data-event-time="${e.time}"><time>${clock(e.time)}</time>${esc(e.title)}<small>${esc(e.detail)}</small></button></li>`).join('');
+    const latest=events.filter(e=>e.type==='replan'&&e.record.searched>0).at(-1);view('replan-detail').innerHTML=latest?`最近一次区间修复 · ${latest.record.searched} 个区间<p>调整前：${esc(latest.record.before)}</p><p>调整后：${esc(latest.record.after)}</p>`:'路况变化与路线调整将在回放过程中记录。';
+    draw(f,roads);
+  }
+  action('play').addEventListener('click',()=>{if(state.timer){stop();save();return;}if(frame().finished){state.index=0;render();}state.playTime=frame().time;action('play').textContent='暂停回放';state.timer=setInterval(()=>{state.playTime+=.2*Number(field('speed').value);while(state.index+1<data.frames.length&&data.frames[state.index+1].time<=state.playTime+1e-8)state.index++;render();if(state.index===data.frames.length-1){stop();set('notice','回放结束，已空车返回 W01。');save();}},200);set('notice','正在回放已保存的 C++ 仿真记录。');});
+  action('step').addEventListener('click',()=>{seek(frame().time+1);set('notice','已按仿真记录前进约 1 分钟。');});
+  action('reset').addEventListener('click',()=>{stop();state.index=0;state.playTime=480;state.road='';field('road').value='';result.textContent='';render();save();set('notice','已重新载入示例，回到 08:00。');});
+  action('route').addEventListener('click',()=>{state.highlight=!state.highlight;render();save();});
+  field('timeline').addEventListener('input',event=>{stop();state.index=+event.target.value;render();});field('timeline').addEventListener('change',save);
+  field('weights').addEventListener('change',event=>{state.weights=event.target.checked;render();});
+  field('road').addEventListener('change',event=>{state.road=event.target.value;render();});
+  root.addEventListener('click',event=>{const jump=event.target.closest('[data-jump]');if(jump){seek(jump.dataset.jump==='end'?data.frames.at(-1).time:Number(jump.dataset.jump));set('notice',`已定位至 ${clock(frame().time)}。`);}const entry=event.target.closest('[data-event-time]');if(entry)seek(Number(entry.dataset.eventTime));});
+  view('order-form').addEventListener('submit',event=>{event.preventDefault();const values=new FormData(event.currentTarget);const minutes=value=>{const [h,m]=String(value).split(':').map(Number);return h*60+m;};const q=Number(values.get('quantity')),start=minutes(values.get('earliest')),end=minutes(values.get('latest'));let error='';if(!Number.isFinite(q)||q<=0)error='货物量必须大于 0。';else if(q>data.capacity)error=`单笔货物 ${q} kg 超过车辆上限 ${data.capacity} kg。`;else if(!Number.isFinite(start)||!Number.isFinite(end)||end<start)error='窗口结束时间必须不早于开始时间。';else if(end<frame().time)error='时间窗口已经结束，请调整时间。';result.className=error?'lp-error':'lp-success';result.setAttribute('role',error?'alert':'status');result.textContent=error||'输入格式与单笔容量校验通过。取货路径、沿途载重和所有订单窗口仍需 C++ 试算；本次未提交订单。';});
+  window.addEventListener('pagehide',stop);document.addEventListener('visibilitychange',()=>{if(document.hidden)stop();});
+  window.addEventListener('openai:set_globals',event=>{const next=event.detail?.globals?.widgetState?.privateContent;if(next&&Number.isInteger(next.index)){stop();state.index=Math.max(0,Math.min(data.frames.length-1,next.index));if(typeof next.highlight==='boolean')state.highlight=next.highlight;render();}});
+  let resizeQueued=false;new ResizeObserver(()=>{if(!resizeQueued){resizeQueued=true;requestAnimationFrame(()=>{resizeQueued=false;draw(frame(),currentEdges(frame()));});}}).observe(view('map'));
+  render();
+})();
+</script>
