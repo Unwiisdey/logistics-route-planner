@@ -1,0 +1,7 @@
+bridge-build/
+dist/
+node_modules/
+__pycache__/
+*.png
+*-verification.json
+verification.json

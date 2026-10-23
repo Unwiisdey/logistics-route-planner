@@ -47,6 +47,14 @@ endfunction()
 logistics_warnings(logistics_core)
 logistics_warnings(logistics_app)
 
+option(LOGISTICS_BUILD_UI "Build the local web UI bridge" ON)
+if(LOGISTICS_BUILD_UI)
+    add_executable(logistics_ui_bridge ui/bridge.cpp)
+    target_include_directories(logistics_ui_bridge SYSTEM PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/third_party")
+    target_link_libraries(logistics_ui_bridge PRIVATE logistics_core)
+    logistics_warnings(logistics_ui_bridge)
+endif()
+
 # Works from the build directory and beside the executable, without source-tree paths.
 configure_file(config/network.json config/network.json COPYONLY)
 configure_file(config/orders.json config/orders.json COPYONLY)
@@ -65,4 +73,16 @@ add_custom_target(copy_network_config ALL
 include(CTest)
 if(BUILD_TESTING)
     add_subdirectory(tests)
+    if(LOGISTICS_BUILD_UI)
+        find_package(Python3 3.9 COMPONENTS Interpreter QUIET)
+        if(Python3_Interpreter_FOUND)
+            foreach(suite bridge http)
+                add_test(NAME ui.${suite}
+                    COMMAND "${Python3_EXECUTABLE}" -m unittest discover -s tests -p "test_ui_${suite}.py" -v)
+                set_tests_properties(ui.${suite} PROPERTIES
+                    WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+                    ENVIRONMENT "LOGISTICS_UI_BRIDGE=$<TARGET_FILE:logistics_ui_bridge>")
+            endforeach()
+        endif()
+    endif()
 endif()

@@ -25,6 +25,8 @@ jobs:
         run: ctest --test-dir build -C Release --output-on-failure
       - name: Python data tests
         run: python -m unittest discover -s tests -p "test_plot*.py" -v
+      - name: Build web UI assets
+        run: python ui/build_live.py
       - name: End-to-end demonstration
         run: python scripts/demo.py --output exports/ci-demo
       - name: Install optional plotting dependency

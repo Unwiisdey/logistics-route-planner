@@ -13,7 +13,7 @@
   const state={highlight:true,road:'',weights:false,running:false,timer:null,busy:false,current:null};
   let pending=Promise.resolve();
   function stop(){state.running=false;if(state.timer)clearTimeout(state.timer);state.timer=null;action('play').textContent='开始仿真';}
-  function controls(){for(const key of ['reset','step'])action(key).disabled=state.busy||!state.current;root.querySelector('[type=submit]').disabled=state.busy||!state.current;}
+  function controls(){for(const key of ['reset','step'])action(key).disabled=state.busy||!state.current;action('play').disabled=!state.current;root.querySelector('[type=submit]').disabled=state.busy||!state.current;}
   function reason(text){
     if(text.includes('pickup would exceed'))return '无法插入：取货会超过车辆载重上限。';
     if(text.includes('time window missed'))return '无法插入：新订单或已有订单将错过时间窗口。';
@@ -28,7 +28,7 @@
         const response=await fetch('/api/command',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
         const payload=await response.json();if(!response.ok||!payload.ok)throw new Error(payload.error||'请求失败');
         apply(payload);return payload;
-      }catch(error){stop();set('notice',`操作未完成：${error.message}。请确认本地服务仍在运行。`);throw error;}
+      }catch(error){stop();set('notice',`操作未完成：${error.message}`);throw error;}
       finally{state.busy=false;controls();}
     };
     const result=pending.then(run,run);pending=result.catch(()=>{});return result;
@@ -94,5 +94,5 @@
   document.addEventListener('visibilitychange',()=>{if(document.hidden)stop();});window.addEventListener('pagehide',stop);
   let resizeQueued=false;new ResizeObserver(()=>{if(state.current&&!resizeQueued){resizeQueued=true;requestAnimationFrame(()=>{resizeQueued=false;draw(state.current.frame,edges);});}}).observe(view('map'));
   set('notice','正在连接本机 C++ 仿真服务…');controls();
-  fetch('/api/state').then(response=>response.json()).then(payload=>{if(!payload.ok)throw new Error(payload.error);apply(payload);controls();set('notice','已连接 C++。展开“手动添加动态订单”即可提交。');}).catch(error=>{set('notice',`连接失败：${error.message}。请双击 Start-Demo.cmd 启动本地服务。`);});
+  fetch('/api/state').then(response=>response.json()).then(payload=>{if(!payload.ok)throw new Error(payload.error);apply(payload);controls();set('notice','已连接 C++。展开“手动添加动态订单”即可提交。');}).catch(error=>{set('notice',`连接失败：${error.message}。请使用项目根目录 Start-UI.cmd 启动。`);});
 })();

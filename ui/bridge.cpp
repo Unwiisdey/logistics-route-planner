@@ -13,7 +13,7 @@ using json = nlohmann::json;
 using namespace logistics;
 template<class T> json nullable(const std::optional<T>& value) { return value ? json(*value) : json(nullptr); }
 
-class Demo {
+class SimulationSession {
     Graph graph_;
     std::vector<Order> initial_;
     std::unique_ptr<Simulation> sim_;
@@ -22,7 +22,7 @@ class Demo {
     std::vector<OrderAction> planned_actions_; // Actual stop order returned by the planner.
     std::size_t generated_{0};
 public:
-    Demo(const std::filesystem::path& network, const std::filesystem::path& scenario)
+    SimulationSession(const std::filesystem::path& network, const std::filesystem::path& scenario)
         : graph_(ConfigLoader::load_network(network)),
           initial_(OrderConfigLoader::load(scenario).initial_orders) { reset(); }
     void reset() {
@@ -100,7 +100,7 @@ public:
             if (i->searched_legs) { replan = {{"time",i->time},{"before",i->before},{"after",i->after},{"searched",i->searched_legs}}; break; }
         }
         const auto stats = sim_->path_cache_stats();
-        return {{"ok",true},{"nodes",nodes},{"edges",edges},{"orders",orders},{"events",events},
+        return {{"ok",true},{"app","logistics-route-planner"},{"ui_version",1},{"nodes",nodes},{"edges",edges},{"orders",orders},{"events",events},
             {"traversals",traversals},{"capacity",100},{"segment",segment},{"last_trip",last_trip},{"replan",replan},
             {"current_task",current_task},{"task_path",tasks},
             {"cache",{{"hits",stats.hits},{"misses",stats.misses}}},
@@ -165,10 +165,10 @@ int main(int argc, char** argv) {
 #endif
     if (argc != 3) { return 2; }
     try {
-        Demo demo(argv[1],argv[2]);
+        SimulationSession session(argv[1],argv[2]);
         std::string line;
         while (std::getline(std::cin,line)) {
-            try { std::cout << demo.command(json::parse(line)).dump() << '\n' << std::flush; }
+            try { std::cout << session.command(json::parse(line)).dump() << '\n' << std::flush; }
             catch (const std::exception& e) { std::cout << json{{"ok",false},{"error",e.what()}}.dump() << '\n' << std::flush; }
         }
     } catch (const std::exception& e) {

@@ -2,7 +2,7 @@
 
 [![Build and test](https://github.com/Unwiisdey/logistics-route-planner/actions/workflows/ci.yml/badge.svg)](https://github.com/Unwiisdey/logistics-route-planner/actions/workflows/ci.yml)
 
-**v1.0.0 最终课程设计版本**。使用 C++17 有向带权图模拟单车辆城市配送，包含订单、窗口、载重、动态插单、路况变化及局部重规划。课程原文需求映射见 [requirements.md](docs/requirements.md)。
+**C++17 物流配送系统（含正式本地 Web 界面）**。使用 C++17 有向带权图模拟单车辆城市配送，包含订单、窗口、载重、动态插单、路况变化及局部重规划。课程原文需求映射见 [requirements.md](docs/requirements.md)。
 
 [用户手册](docs/user-manual.md) · [设计文档](docs/design.md) · [API](docs/api.md) · [测试报告](docs/test-report.md) · [演示与答辩](docs/demo/README.md) · [项目验收管理](docs/project-management.md) · [版本记录](CHANGELOG.md) · [GitHub Releases](https://github.com/Unwiisdey/logistics-route-planner/releases)
 
@@ -24,10 +24,22 @@
 | 仿真 | 连续模拟时钟、车辆在边上的位置、等待/卸货、固定超时罚分 |
 | 路况 | 默认每 30 秒选取约 10% 道路，增时至少 20% 触发受影响取送区间修复 |
 | 优化 | 有界最短路缓存、图版本自动失效、目标提前停止；保留未受影响区间 |
-| 展示 | CSV、PNG、GIF、滑块与播放/暂停，历史路线和路况版本一致 |
-| 验证 | 本地 Debug / Release 各 96 项 CTest，23 项 Python 测试；多种子缓存对照与性能基准 |
+| 展示 | 正式本地 Web 界面、手动插单、当前任务与任务路径；保留 CSV、PNG、GIF 和历史回放 |
+| 验证 | 核心历史 Debug / Release 各 96 项 CTest；正式 UI 集成后 Release 98 项通过，另有 23 项 Python 回放测试 |
 
 时间单位为分钟，货物 kg、距离 km、费用元。08:00 对应 480。早到等待，在开始卸货时检查闭区间窗口；实际超时每单固定 10 分（可配置），与运输成本分开统计。
+
+## 图形界面（推荐）
+
+Windows 双击项目根目录 **Start-UI.cmd**，或运行：
+
+```sh
+python scripts/start_ui.py
+```
+
+需要 Python 3.9+、CMake 3.16+ 和 C++17 编译器。启动器自动构建 logistics_ui_bridge、生成网页并打开 http://127.0.0.1:8765/ 。网页与 CLI 共用 C++ 核心，可手动提交动态订单、查看车辆和路况，以及当前任务和取送任务路径。保持终端运行，Ctrl+C 停止。
+
+已有构建可加 --no-build；详细操作、耗时解释、测试和端口参数见 [正式 UI 手册](docs/ui-guide.md)。下方快速开始保留 CLI 使用方式。
 
 ## 快速开始
 
@@ -88,6 +100,9 @@ include/logistics/   model、graph、config、planning、simulation、traffic、
 src/                 C++17 实现与 CLI
 config/              network.json、orders.json、字段说明
 scripts/             网络/仿真/路况绘图，一键演示与性能统计
+ui/                  正式 Web 页面、Python 本地服务与 C++ 桥接
+scripts/start_ui.py  一键构建并启动 UI
+Start-UI.cmd         Windows 图形界面启动入口
 tests/               单元、边界、集成、性能及 Python 回放测试
 docs/                设计、手册、API、测试报告、需求与历史阶段样例
 docs/demo/           答辩脚本、问答、截图、GIF

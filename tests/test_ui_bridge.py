@@ -2,9 +2,8 @@ import json
 import subprocess
 import unittest
 from pathlib import Path
-from serve_demo import PROJECT, bridge_binary
+from ui.server import PROJECT, bridge_binary
 
-HERE = Path(__file__).resolve().parent
 
 class BridgeTests(unittest.TestCase):
     def setUp(self):

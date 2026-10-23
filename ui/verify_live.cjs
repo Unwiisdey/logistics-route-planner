@@ -13,6 +13,7 @@ const fs=require('node:fs');
     await page.getByRole('button',{name:'重置仿真',exact:true}).click();
     await page.waitForFunction(()=>document.querySelector('[data-view=notice]').textContent.includes('已重置'));
     assert.equal(await text('completed'),'0 / 3');
+    assert((await page.locator('.lp-preview').innerText()).includes('正式 UI'));
     assert((await text('current-task')).startsWith('送货 · O'));
     assert((await text('task-path')).endsWith('返仓 · W01'));
     assert((await text('segment-total')).includes('6.00'));
