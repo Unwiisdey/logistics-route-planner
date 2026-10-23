@@ -7,6 +7,7 @@
   const esc = value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const clock = value=>{if(value===null||value===undefined)return '—';const s=Math.round(value*60);return `${String(Math.floor(s/3600)).padStart(2,'0')}:${String(Math.floor(s/60)%60).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`;};
   const hm=value=>clock(value).slice(0,5);
+  const taskLabel=task=>task.kind==='return'?`返仓 · ${task.node_id}`:`${task.kind==='pickup'?'取货':'送货'} · ${task.order_id}`;
   const names={driving:'行驶中',waiting:'等待窗口',unloading:'卸货中',idle:'空闲'};
   const data={nodes:[],edges:[],orders:[],traversals:[]},nodes=new Map(),edges=new Map();
   const state={highlight:true,road:'',weights:false,running:false,timer:null,busy:false,current:null};
@@ -57,6 +58,8 @@
     set('completed',`${f.delivered_count} / ${data.orders.filter(o=>o.accepted).length}`);set('late',f.late_count);set('penalty',f.penalty_points);set('revision',`生效路线 v${f.route_revision}`);set('congestion',`拥堵 ${data.edges.filter(e=>e.traffic_status==='congested').length} 条`);
     action('route').textContent=`路线高亮：${state.highlight?'开':'关'}`;action('route').setAttribute('aria-pressed',state.highlight);
     set('path',f.future_nodes.length?f.future_nodes.join(' → '):'已完成全部已接订单。');
+    set('current-task',payload.current_task?taskLabel(payload.current_task):'全部任务完成');
+    set('task-path',payload.task_path.length?payload.task_path.map(taskLabel).join(' → '):'全部任务完成');
     const selected=edges.get(state.road);set('road-detail',selected?`${selected.from_id} → ${selected.to_id} · ${selected.distance.toFixed(1)} km · 当前 ${selected.time.toFixed(2)} 分钟 · ${selected.traffic_status==='congested'?'拥堵':'畅通'}`:'地图标签表示道路当前预计耗时，不是本车剩余耗时。');
     set('live-time',`模拟时间 ${clock(f.time)} · 已运行 ${(f.time-480).toFixed(1)} 分钟`);
     view('orders').innerHTML=data.orders.map(o=>{let label='配送中',cls='',sub=o.priority==='urgent'?'紧急':'普通';if(!o.accepted){label='已拒绝';cls='rejected';sub=reason(o.reason);}else if(o.completed!==null){label=o.late_minutes>0?'超时完成':'已完成';cls='done';sub=`完成 ${hm(o.completed)}`;}else if(o.service!==null){label='卸货中';}else if(o.pickup===null){label='待取货';}return `<tr><td>${esc(o.id)}<small>${esc(o.delivery_node_id)} · ${esc(sub)}</small></td><td>${o.quantity} kg</td><td>${hm(o.time_window.earliest)}–${hm(o.time_window.latest)}</td><td><span class="lp-order-state ${cls}">${label}</span></td></tr>`;}).join('');

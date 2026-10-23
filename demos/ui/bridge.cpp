@@ -2,6 +2,7 @@
 #include "logistics/config/OrderConfigLoader.h"
 #include "logistics/simulation/Simulation.h"
 #include <nlohmann/json.hpp>
+#include <algorithm>
 #include <cmath>
 #include <iostream>
 #include <map>
@@ -18,6 +19,7 @@ class Demo {
     std::unique_ptr<Simulation> sim_;
     std::map<OrderId, json> requests_;
     std::vector<json> rejected_;
+    std::vector<OrderAction> planned_actions_; // Actual stop order returned by the planner.
     std::size_t generated_{0};
 public:
     Demo(const std::filesystem::path& network, const std::filesystem::path& scenario)
@@ -28,6 +30,10 @@ public:
         auto candidate = std::make_unique<Simulation>(graph_, "W01", initial_, 480, options);
         candidate->enable_traffic();
         sim_ = std::move(candidate); requests_.clear(); rejected_.clear(); generated_ = 0;
+        planned_actions_.clear();
+        for (const auto& stop : sim_->route_revisions().back().route.stops) {
+            planned_actions_.push_back(stop.action);
+        }
         for (const auto& order : initial_) {
             requests_[order.id()] = {{"id",order.id()},{"warehouse_id",order.warehouse_id()},
                 {"delivery_node_id",order.delivery_node_id()},{"quantity",order.quantity()},
@@ -54,6 +60,18 @@ public:
             orders.push_back(std::move(o));
         }
         for (const auto& rejected : rejected_) { orders.push_back(rejected); }
+        json tasks = json::array();
+        for (const auto& action : planned_actions_) {
+            const auto found = std::find_if(sim_->deliveries().begin(), sim_->deliveries().end(),
+                [&](const DeliveryRecord& delivery) { return delivery.order_id == action.order_id; });
+            if (found == sim_->deliveries().end()) { throw std::logic_error("task references an unknown accepted order"); }
+            const bool pickup = action.kind == OrderActionKind::Pickup;
+            if (found->delivered_at || (pickup && found->picked_up_at)) { continue; }
+            tasks.push_back({{"kind",pickup ? "pickup" : "delivery"},{"order_id",action.order_id},
+                {"node_id",pickup ? found->warehouse_id : found->node_id}});
+        }
+        if (!f.finished) { tasks.push_back({{"kind","return"},{"order_id",nullptr},{"node_id","W01"}}); }
+        const json current_task = tasks.empty() ? json(nullptr) : tasks.front();
         json traversals = json::array(), last_trip = nullptr;
         std::optional<SimulationSnapshot> departure;
         for (const auto& e : sim_->events()) {
@@ -84,6 +102,7 @@ public:
         const auto stats = sim_->path_cache_stats();
         return {{"ok",true},{"nodes",nodes},{"edges",edges},{"orders",orders},{"events",events},
             {"traversals",traversals},{"capacity",100},{"segment",segment},{"last_trip",last_trip},{"replan",replan},
+            {"current_task",current_task},{"task_path",tasks},
             {"cache",{{"hits",stats.hits},{"misses",stats.misses}}},
             {"frame",{{"time",f.time},{"status",to_string(f.status)},{"node_id",f.node_id.value_or("")},
             {"edge_id",f.edge_id.value_or("")},{"from_id",f.from_id},{"to_id",f.to_id},
@@ -121,9 +140,19 @@ public:
                 {"delivery_node_id",order.delivery_node_id()},{"quantity",quantity},{"priority",priority},
                 {"release_time",sim_->clock().now()},{"completed",nullptr},{"service",nullptr},{"pickup",nullptr},
                 {"time_window",{{"earliest",window.earliest},{"latest",window.latest}}}};
+            const auto before = sim_->snapshot();
+            const bool locked_delivery = before.status == VehicleStatus::Waiting || before.status == VehicleStatus::Unloading;
             const auto result = sim_->insert_order(order);
             record["accepted"] = result.accepted; record["reason"] = result.reason;
-            if (result.accepted) { requests_[id] = record; } else { rejected_.push_back(record); }
+            if (result.accepted) {
+                requests_[id] = record;
+                planned_actions_.clear();
+                // Insertion starts after a committed waiting/unloading phase. Keep that action first.
+                if (locked_delivery && !before.next_order.empty()) {
+                    planned_actions_.push_back({before.next_order,OrderActionKind::Delivery});
+                }
+                for (const auto& stop : result.route.stops) { planned_actions_.push_back(stop.action); }
+            } else { rejected_.push_back(record); }
             insertion = {{"accepted",result.accepted},{"id",id},{"reason",result.reason},{"path",result.route.nodes}};
         } else if (cmd != "state") { throw std::invalid_argument("unknown command"); }
         auto output = state(); output["insertion"] = insertion; return output;
