@@ -120,10 +120,12 @@ void waiting_anchor() {
 void unavoidable_late() {
     auto g = network(); g.remove_edge("A", "T");
     Simulation sim(g, "W", orders(), 0, options()); sim.advance(1);
-    sim.apply_traffic({{"AB", 100, TrafficStatus::Congested}});
+    sim.apply_traffic({{"AB", 100.25, TrafficStatus::Congested}});
     check(sim.replanning_records().back().predicted_late == std::vector<OrderId>{"b"}, "late forecast reported");
     check(!sim.insert_order(DynamicOrder::urgent("new", "W", "A", 1, 1, 200)).accepted, "cannot accept while old deadline fails");
-    finish(sim); check(sim.snapshot().late_count == 1, "one late order"); check_near(sim.snapshot().penalty_points, 10);
+    finish(sim); check(sim.snapshot().late_count == 1, "one late order");
+    check_near(sim.deliveries()[1].late_minutes, 46.25);
+    check_near(sim.snapshot().penalty_points, 47); // Ceil actual lateness after an accepted order is delayed.
 }
 void pending_insertion() {
     Simulation sim(network(), "W", {Order("a", "W", "A", 2, TimeWindow{0, 500}),

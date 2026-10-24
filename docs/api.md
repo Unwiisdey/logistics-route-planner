@@ -81,7 +81,11 @@ sim.export_csv("exports/api");
 | path_cache_stats | 命中、未命中、失效、淘汰统计 |
 | write_log(stream) / export_csv(path) | 输出日志、参数、模型和运行数据；I/O 错误抛异常 |
 
-`SimulationOptions` 默认 step=5、unload=2、fixed penalty=10、vehicle_id=V01、capacity=1000、cache capacity=256。`TrafficOptions` 默认 interval_minutes=0.5、fraction=0.1、倍率范围 [1.2,2.0]、seed=42。TrafficUpdate 含 road_id、更新后的绝对耗时和 Clear/Congested；不是增加量。当前阶段不接受运行中 Closed 事件。
+`SimulationOptions` 默认 step=5、unload=2、late_penalty_per_minute=1（迟到分钟向上取整）、vehicle_id=V01、capacity=1000、cache capacity=256。`TrafficOptions` 默认 interval_minutes=0.5、fraction=0.1、倍率范围 [1.2,2.0]、seed=42。TrafficUpdate 含 road_id、更新后的绝对耗时和 Clear/Congested；不是增加量。当前阶段不接受运行中 Closed 事件。
+
+`TimeWindow::late_penalty(service_start, points_per_minute)` 依据窗口计算迟到分钟，向上取整后乘费率；未迟到或费率为 0 时计 0。它取代原 fixed_penalty 接口，SimulationOptions 的费率字段为 late_penalty_per_minute。计算及累计溢出会报错，实际完成前不会写入无穷分值。窗口与整分钟边界沿用 1e-9 分钟数值容差，不构成业务宽限。
+
+新版 simulation_options.csv 使用 late_penalty_per_minute 和 penalty_rounding=ceil，取代旧 fixed_late_penalty 字段。旧 CSV 和 v1.0.0 发布说明仍表示历史固定规则；新运行的处罚以服务开始时的迟到时长计算，并在完成时只记一次。
 
 `TrafficSimulator::sample(graph)` 不修改图；`validate` 校验整批，`apply` 更新指定边并返回前后变化；`significant_increase` 使用含 20% 的阈值。直接调用 Graph/TrafficSimulator 不会替你更新 Simulation，应使用 sim.apply_traffic。
 

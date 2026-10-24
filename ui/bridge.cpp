@@ -103,6 +103,7 @@ public:
         return {{"ok",true},{"app","logistics-route-planner"},{"ui_version",1},{"nodes",nodes},{"edges",edges},{"orders",orders},{"events",events},
             {"traversals",traversals},{"capacity",100},{"segment",segment},{"last_trip",last_trip},{"replan",replan},
             {"current_task",current_task},{"task_path",tasks},
+            {"penalty_rule",{{"rate_per_minute",SimulationOptions{}.late_penalty_per_minute},{"rounding","ceil"},{"based_on","service_start"}}},
             {"cache",{{"hits",stats.hits},{"misses",stats.misses}}},
             {"frame",{{"time",f.time},{"status",to_string(f.status)},{"node_id",f.node_id.value_or("")},
             {"edge_id",f.edge_id.value_or("")},{"from_id",f.from_id},{"to_id",f.to_id},

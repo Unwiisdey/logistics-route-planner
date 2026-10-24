@@ -58,12 +58,8 @@ Simulation::Simulation(Graph graph, RoutePlan route, SimulationOptions options)
     if (route_.start_node_id != route_.warehouse_id) {
         throw std::invalid_argument("initial simulation must start at its warehouse");
     }
-    if (!std::isfinite(options_.late_penalty_points) || options_.late_penalty_points < 0) {
-        throw std::invalid_argument("fixed late penalty must be finite and nonnegative");
-    }
-    if (!route_.requested_delivery_node_ids.empty() && options_.late_penalty_points >
-        std::numeric_limits<double>::max() / static_cast<double>(route_.requested_delivery_node_ids.size())) {
-        throw std::overflow_error("total late penalty could overflow");
+    if (!std::isfinite(options_.late_penalty_per_minute) || options_.late_penalty_per_minute < 0) {
+        throw std::invalid_argument("late penalty rate must be finite and nonnegative");
     }
     for (const auto& stop : route_.stops) {
         if (stop.role != StopRole::Delivery) { continue; }
@@ -162,8 +158,16 @@ void Simulation::finish_phase() {
         begin_unloading();
     } else if (vehicle_.status() == VehicleStatus::Unloading) {
         auto& task = deliveries_[*active_delivery_];
+        const auto penalty = task.window
+            ? task.window->late_penalty(*task.service_start, options_.late_penalty_per_minute) : 0.0;
+        // Validate the actual accumulated total before marking this delivery complete.
+        double total_penalty = 0.0;
+        for (const auto& previous : deliveries_) {
+            if (&previous == &task) { total_penalty = detail::checked_sum(total_penalty, penalty); }
+            else if (previous.delivered_at) { total_penalty = detail::checked_sum(total_penalty, previous.penalty_points); }
+        }
         task.delivered_at = clock_.now();
-        task.penalty_points = task.late_minutes > 0 ? options_.late_penalty_points : 0;
+        task.penalty_points = penalty;
         vehicle_.unload(task.quantity);
         task.loaded = false;
         vehicle_.status_ = VehicleStatus::Idle;
@@ -257,7 +261,8 @@ std::vector<NodeId> Simulation::remaining_deliveries() const {
 void Simulation::write_log(std::ostream& out) const {
     out << std::fixed << std::setprecision(2);
     out << "Vehicle " << vehicle_.id() << " capacity=" << vehicle_.capacity() << " kg; step=" << clock_.step()
-        << " min; unload=" << options_.unload_minutes << " min; fixed late penalty=" << options_.late_penalty_points << " points/order\n";
+        << " min; unload=" << options_.unload_minutes << " min; late penalty rate=" << options_.late_penalty_per_minute
+        << " points/started late minute (rounded up; service-start lateness)\n";
     for (const auto& event : events_) {
         const auto& s = event.state;
         out << '[' << SimClock::format(s.time) << " | " << s.time << " min] " << event.kind
@@ -324,9 +329,9 @@ void Simulation::export_csv(const std::filesystem::path& directory) const {
         revisions.flush(); stops.flush(); decisions.flush();
     }
     auto settings = open_csv(directory / "simulation_options.csv");
-    settings << "vehicle_id,capacity_kg,start_minutes,step_minutes,unload_minutes,fixed_late_penalty,path_cache_capacity\n"
+    settings << "vehicle_id,capacity_kg,start_minutes,step_minutes,unload_minutes,late_penalty_per_minute,penalty_rounding,path_cache_capacity\n"
              << csv(vehicle_.id()) << ',' << vehicle_.capacity() << ',' << route_.departure_time << ',' << clock_.step()
-             << ',' << options_.unload_minutes << ',' << options_.late_penalty_points << ',' << options_.path_cache_capacity << '\n';
+             << ',' << options_.unload_minutes << ',' << options_.late_penalty_per_minute << ",ceil," << options_.path_cache_capacity << '\n';
     auto cache_file = open_csv(directory / "path_cache.csv");
     const auto& cache = path_cache_.stats();
     cache_file << "capacity,entries,hits,misses,invalidations,evictions\n"

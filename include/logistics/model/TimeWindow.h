@@ -14,6 +14,7 @@ struct TimeWindow {
     double latest{0.0};
     void validate() const;
     WindowResult evaluate(double arrival) const;
-    double fixed_penalty(double arrival, double points_per_order) const;
+    // Started late minutes (rounded up) times a finite nonnegative rate.
+    double late_penalty(double arrival, double points_per_minute) const;
 };
 }  // namespace logistics

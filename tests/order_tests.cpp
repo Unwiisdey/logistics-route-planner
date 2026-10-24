@@ -46,8 +46,18 @@ void windows() {
     auto early = window.evaluate(539.25); check_near(early.waiting_minutes, .75); check(early.on_time(), "early waits");
     check(window.evaluate(660).on_time(), "deadline inclusive");
     check_near(window.evaluate(660.25).late_minutes, .25);
-    check_near(window.fixed_penalty(660.25, 10), 10);
-    check_near(window.fixed_penalty(800, 10), 10);
+    check_near(window.late_penalty(660, 1), 0);
+    check_near(window.late_penalty(660.25, 1), 1);
+    check_near(window.late_penalty(662, 1), 2);
+    check_near(window.late_penalty(662.5, 1), 3);
+    check_near(window.late_penalty(800, 1), 140);
+    check_near(window.late_penalty(660.25, 2.5), 2.5);
+    check_near(window.late_penalty(800, 0), 0);
+    check_near(TimeWindow{0, 0}.late_penalty(1 + 5e-10, 1), 1); // Floating noise only.
+    check_near(TimeWindow{0, 0}.late_penalty(1.00000001, 1), 2);
+    expect_throw<std::invalid_argument>([&] { window.late_penalty(661, -1); });
+    expect_throw<std::invalid_argument>([&] { window.late_penalty(661, std::numeric_limits<double>::infinity()); });
+    expect_throw<std::overflow_error>([&] { window.late_penalty(662, std::numeric_limits<double>::max()); });
     check_near(TimeWindow{1430, 1450}.evaluate(1440).service_start, 1440);
     check(TimeWindow{0, .3}.evaluate(.1 + .2).on_time(), "decimal roundoff is not a late order");
     check(!TimeWindow{0, .3}.evaluate(.30000001).on_time(), "real fractional lateness is preserved");

@@ -43,7 +43,7 @@ Windows 本地实测环境与远端 CI 记录见 [测试报告](test-report.md)�
 # 距离/成本规划；不含等待与卸货的静态结果
 .\build\Release\logistics_app.exe --plan distance --export exports/distance
 .\build\Release\logistics_app.exe --plan cost --export exports/cost
-# 全部节点任务的旧固定路线仿真，展示实际迟到与固定处罚
+# 全部节点任务的旧固定路线仿真，展示实际迟到与按分钟计罚
 .\build\Release\logistics_app.exe --plan distance --simulate --export exports/static-simulation
 # 严格窗口、动态订单、真实仓库取货
 .\build\Release\logistics_app.exe --plan distance --simulate --scenario config/orders.json --capacity 100 --export exports/orders
@@ -69,7 +69,8 @@ Windows 本地实测环境与远端 CI 记录见 [测试报告](test-report.md)�
 | `--scenario FILE` | 独立订单 JSON，自动开启硬窗口，需要 --simulate |
 | `--step MINUTES` | 5，必须正数；路况事件在步长内准确发生 |
 | `--unload-minutes MINUTES` | 2，可为 0 |
-| `--late-penalty POINTS` | 每超时订单固定 10 分，可改为其他非负值 |
+| `--late-penalty-per-minute POINTS` | 每开始迟到一分钟的处罚分，默认 1；迟到分钟向上取整 |
+| `--late-penalty POINTS` | 兼容别名，当前同样表示每分钟分值，不再是每单固定分 |
 | `--vehicle-id ID` | V01 |
 | `--cache-capacity COUNT` | 256，整数 0～65536；0 关闭最短路缓存 |
 | `--traffic` | 开启模拟路况，需要 --simulate |
@@ -103,7 +104,7 @@ python scripts/plot_traffic.py --input-dir exports/traffic --frame 80 --output e
 | nodes / edges.csv | 初始网络；路况历史另存 |
 | route / stops / summary.csv | 仅静态计划的路径及汇总 |
 | simulation / events.csv | 车辆快照、事件、版本和 ETA |
-| deliveries / insertions.csv | 接单结果、实际取送、迟到和固定罚分 |
+| deliveries / insertions.csv | 接单结果、实际取送、迟到时长和分钟罚分 |
 | route_revisions / route_stops.csv | 已生效版本及取送动作 |
 | remaining_routes.csv | 每帧待执行路线，可能尚未在当前边结束处生效 |
 | traffic / replans.csv | 路况变化、触发原因、前后路线、搜索区间数、预测风险 |

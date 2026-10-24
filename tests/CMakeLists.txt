@@ -47,7 +47,7 @@ set_tests_properties(app.insufficient_capacity PROPERTIES WILL_FAIL TRUE)
 add_executable(simulation_tests simulation_tests.cpp)
 target_link_libraries(simulation_tests PRIVATE logistics_core)
 logistics_warnings(simulation_tests)
-foreach(case clock vehicle motion windows fixed_penalty step_invariance zero_time_and_empty
+foreach(case clock vehicle motion windows minute_penalty step_invariance zero_time_and_empty
              repeated_nodes invalid_inputs export_and_snapshot demo_network)
     add_test(NAME simulation.${case} COMMAND simulation_tests ${case})
     set_tests_properties(simulation.${case} PROPERTIES WORKING_DIRECTORY "${PROJECT_BINARY_DIR}")

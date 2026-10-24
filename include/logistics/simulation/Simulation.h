@@ -13,7 +13,7 @@ namespace logistics {
 struct SimulationOptions {
     Minutes step_minutes{5.0};
     Minutes unload_minutes{2.0};
-    double late_penalty_points{10.0};  // Fixed charge per late delivery, NOT per minute.
+    double late_penalty_per_minute{1.0};  // Ceil(actual late minutes) times this rate.
     std::string vehicle_id{"V01"};
     double capacity_kg{1000.0};
     std::size_t path_cache_capacity{256};

@@ -56,6 +56,7 @@
     set('next',f.next_order||'—');set('eta',clock(f.next_arrival));set('return',clock(f.estimated_return));
     set('load',`${f.load.toFixed(1)} / ${data.capacity} kg`);view('load-bar').style.width=`${f.load/data.capacity*100}%`;root.querySelector('.lp-load').setAttribute('aria-valuenow',f.load);
     set('completed',`${f.delivered_count} / ${data.orders.filter(o=>o.accepted).length}`);set('late',f.late_count);set('penalty',f.penalty_points);set('revision',`生效路线 v${f.route_revision}`);set('congestion',`拥堵 ${data.edges.filter(e=>e.traffic_status==='congested').length} 条`);
+    root.querySelector('.lp-footer > span').textContent=`C++ 实时交互 · 单车 / 载重 ${data.capacity} kg / 迟到分钟向上取整 × ${payload.penalty_rule.rate_per_minute} 分/分钟`;
     action('route').textContent=`路线高亮：${state.highlight?'开':'关'}`;action('route').setAttribute('aria-pressed',state.highlight);
     set('path',f.future_nodes.length?f.future_nodes.join(' → '):'已完成全部已接订单。');
     set('current-task',payload.current_task?taskLabel(payload.current_task):'全部任务完成');

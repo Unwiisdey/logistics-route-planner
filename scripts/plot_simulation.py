@@ -110,7 +110,7 @@ def create_view(data, frames):
     legend.append(Line2D([], [], marker="*", color="none", markerfacecolor="#c82e87", markersize=16, label="Vehicle position"))
     fig.legend(handles=legend, loc="lower left", bbox_to_anchor=(.05, .14), ncol=4, frameon=False, fontsize=10)
     fig.text(.06, .105, "# = road traversal number. Repeated traversals use separate curves. Vehicle moves linearly between node coordinates.", fontsize=9, color="#536779")
-    fig.text(.06, .075, "Time window checked at unloading start. Fixed penalty per late order; recorded once when delivery completes.", fontsize=9, color="#536779")
+    fig.text(.06, .075, "Window checked at unloading start. Penalty is the recorded score; see simulation_options.csv for its rate and rule.", fontsize=9, color="#536779")
 
     def update(index):
         frame = frames[int(index)]

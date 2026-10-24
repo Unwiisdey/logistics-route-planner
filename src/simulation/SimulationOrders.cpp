@@ -31,9 +31,8 @@ Simulation::Simulation(Graph graph, const NodeId& warehouse, std::vector<Order> 
                        SimulationOptions options, RouteStrategy strategy)
     : graph_(std::move(graph)), options_(std::move(options)), path_cache_(options_.path_cache_capacity), clock_(start, options_.step_minutes),
       vehicle_(options_.vehicle_id, options_.capacity_kg, cargo_sum(orders), warehouse), order_mode_(true) {
-    if (!std::isfinite(options_.late_penalty_points) || options_.late_penalty_points < 0 ||
-        (!orders.empty() && options_.late_penalty_points > std::numeric_limits<double>::max() / static_cast<double>(orders.size()))) {
-        throw std::invalid_argument("invalid fixed penalty or penalty total");
+    if (!std::isfinite(options_.late_penalty_per_minute) || options_.late_penalty_per_minute < 0) {
+        throw std::invalid_argument("late penalty rate must be finite and nonnegative");
     }
     route_.warehouse_id = warehouse;
     route_.departure_time = start;
@@ -115,9 +114,6 @@ InsertionResult Simulation::insert_order(const Order& order) {
         if (locked.window && !locked.window->evaluate(start).on_time()) {
             result.reason = "committed current delivery is already late";
         }
-    }
-    if (options_.late_penalty_points > std::numeric_limits<double>::max() / static_cast<double>(orders_.size() + 1)) {
-        result.reason = "penalty total could overflow";
     }
     if (result.reason.empty()) {
         try { result = DynamicOrder::insert(graph_, ctx, order, &path_cache_); }

@@ -6,6 +6,7 @@
 #include <filesystem>
 #include <fstream>
 #include <limits>
+#include <cmath>
 #include <sstream>
 
 using namespace logistics;
@@ -75,7 +76,7 @@ void windows_test() {
     const auto& a = run.deliveries()[0]; const auto& b = run.deliveries()[1];
     check_near(*a.arrival, 482.5); check_near(*a.service_start, 485); check_near(*a.delivered_at, 487);
     check_near(a.penalty_points, 0); // Starting exactly at deadline is on time, even if unloading ends later.
-    check_near(*b.arrival, 490); check_near(b.late_minutes, 1); check_near(b.penalty_points, 10);
+    check_near(*b.arrival, 490); check_near(b.late_minutes, 1); check_near(b.penalty_points, 1);
     check_near(run.clock().now(), 496.5); check_near(run.vehicle().current_load(), 0);
     check(run.vehicle().position().node_id == "W" && run.vehicle().status() == VehicleStatus::Idle, "returns to warehouse");
     const auto& timing = run.expected_timing();
@@ -85,16 +86,48 @@ void windows_test() {
     check(run.events().size() == events && run.remaining_deliveries().empty(), "completed simulation is stable");
 }
 void penalty_test() {
-    const auto graph = network(); SimulationOptions options; options.late_penalty_points = 7;
+    const auto graph = network(); SimulationOptions options; options.late_penalty_per_minute = 7;
     Simulation first(graph, route(graph), options); finish(first);
     Simulation later(graph, route(graph, 600), options); finish(later);
     check_near(first.deliveries()[1].penalty_points, 7);
-    check_near(later.deliveries()[1].penalty_points, 7); // Different lateness, same fixed charge.
+    check_near(later.deliveries()[0].late_minutes, 117.5);
+    check_near(later.deliveries()[0].penalty_points, 118 * 7);
+    check_near(later.deliveries()[1].penalty_points, 119 * 7);
     check(later.deliveries()[1].late_minutes > first.deliveries()[1].late_minutes, "different lateness durations");
-    check_near(later.snapshot().penalty_points, 14);
-    options.late_penalty_points = 0;
+    check_near(later.snapshot().penalty_points, (118 + 119) * 7);
+    Simulation fractional(graph, route(graph, 483.25), options); finish(fractional);
+    check_near(fractional.deliveries()[0].late_minutes, .75);
+    check_near(fractional.deliveries()[0].penalty_points, 7);
+    check_near(fractional.deliveries()[1].late_minutes, 1.75);
+    check_near(fractional.deliveries()[1].penalty_points, 14);
+    const auto paid = fractional.snapshot().penalty_points;
+    fractional.advance(100); check_near(fractional.snapshot().penalty_points, paid);
+    options.late_penalty_per_minute = 0;
     Simulation free(graph, route(graph), options); finish(free);
     check(free.snapshot().late_count == 1, "zero charge still records late order"); check_near(free.snapshot().penalty_points, 0);
+
+    Graph extreme;
+    extreme.add_node(Node("W", NodeType::Warehouse, 0, 0));
+    extreme.add_node(Node("A", NodeType::DeliveryPoint, 1, 0, 0, TimeWindow{0, 0}));
+    extreme.add_edge(Edge("WA", "W", "A", 1, 2, 1));
+    extreme.add_edge(Edge("AW", "A", "W", 1, 1, 1));
+    options.unload_minutes = 0; options.late_penalty_per_minute = std::numeric_limits<double>::max();
+    Simulation overflow(extreme, route(extreme, 0), options);
+    expect_throw<std::overflow_error>([&] { overflow.advance(2); });
+    check(!overflow.deliveries()[0].delivered_at && overflow.snapshot().delivered_count == 0,
+          "overflow must not mark a delivery as completed");
+    check_near(overflow.snapshot().penalty_points, 0);
+
+    extreme.remove_edge("W", "A"); extreme.add_edge(Edge("WA2", "W", "A", 1, 1, 1));
+    extreme.add_node(Node("B", NodeType::DeliveryPoint, 2, 0, 0, TimeWindow{0, 0}));
+    extreme.add_edge(Edge("AB", "A", "B", 1, 0, 1));
+    extreme.add_edge(Edge("BW", "B", "W", 1, 1, 1));
+    options.late_penalty_per_minute = std::numeric_limits<double>::max() * .75;
+    Simulation total_overflow(extreme, route(extreme, 0), options);
+    expect_throw<std::overflow_error>([&] { total_overflow.advance(1); });
+    check(total_overflow.snapshot().delivered_count == 1 && !total_overflow.deliveries()[1].delivered_at,
+          "accumulated overflow must not commit the next delivery");
+    check(std::isfinite(total_overflow.snapshot().penalty_points), "recorded total remains finite");
 }
 void step_test() {
     const auto graph = network();
@@ -102,7 +135,9 @@ void step_test() {
         SimulationOptions options; options.step_minutes = step;
         Simulation run(graph, route(graph), options); finish(run);
         check_near(run.clock().now(), 496.5); check_near(*run.deliveries()[1].arrival, 490);
-        check_near(run.snapshot().penalty_points, 10); check(run.snapshot().completed_edges == 3, "all edges consumed");
+        check_near(run.snapshot().penalty_points, 1); check(run.snapshot().completed_edges == 3, "all edges consumed");
+        Simulation fractional(graph, route(graph, 483.25), options); finish(fractional);
+        check_near(fractional.snapshot().penalty_points, 3); // ceil(.75) + ceil(1.75), every step size.
     }
 }
 void zero_test() {
@@ -133,7 +168,7 @@ void invalid_test() {
     expect_throw<std::invalid_argument>([&] { Simulation bad(graph, plan, options); });
     options.step_minutes = 1; options.unload_minutes = -1;
     expect_throw<std::invalid_argument>([&] { Simulation bad(graph, plan, options); });
-    options.unload_minutes = 0; options.late_penalty_points = std::numeric_limits<double>::quiet_NaN();
+    options.unload_minutes = 0; options.late_penalty_per_minute = std::numeric_limits<double>::quiet_NaN();
     expect_throw<std::invalid_argument>([&] { Simulation bad(graph, plan, options); });
     auto broken = plan; broken.road_sequence[0] = "missing";
     expect_throw<std::invalid_argument>([&] { Simulation bad(graph, broken); });
@@ -154,6 +189,9 @@ void export_test() {
     run.advance(1);
     const auto directory = std::filesystem::path("test_artifacts/simulation");
     run.export_csv(directory);
+    std::ifstream options_file(directory / "simulation_options.csv");
+    std::string header; std::getline(options_file, header);
+    check(header.find("late_penalty_per_minute,penalty_rounding") != std::string::npos, "export names rate and rounding");
     for (const auto& name : {"simulation.csv", "events.csv", "deliveries.csv", "nodes.csv", "route.csv"}) {
         check(std::filesystem::file_size(directory / name) > 50, "CSV file missing/empty");
     }
@@ -170,13 +208,15 @@ void demo_test() {
         check(run.snapshot().delivered_count == 25, "demo delivery coverage");
         check_near(run.clock().now(), run.expected_timing().arrivals.back());
         check_near(run.vehicle().current_load(), 0);
-        check_near(run.snapshot().penalty_points, static_cast<double>(run.snapshot().late_count) * 10);
+        double expected = 0;
+        for (const auto& delivery : run.deliveries()) { expected += std::ceil(delivery.late_minutes); }
+        check_near(run.snapshot().penalty_points, expected);
     }
 }
 }  // namespace
 int main(int argc, char* argv[]) {
     return run_tests(argc, argv, {{"clock", clock_test}, {"vehicle", vehicle_test}, {"motion", motion_test},
-        {"windows", windows_test}, {"fixed_penalty", penalty_test}, {"step_invariance", step_test},
+        {"windows", windows_test}, {"minute_penalty", penalty_test}, {"step_invariance", step_test},
         {"zero_time_and_empty", zero_test}, {"repeated_nodes", repeated_test}, {"invalid_inputs", invalid_test},
         {"export_and_snapshot", export_test}, {"demo_network", demo_test}});
 }

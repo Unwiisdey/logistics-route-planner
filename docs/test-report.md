@@ -1,5 +1,7 @@
 # 测试报告（v1.0.0）
 
+本报告保留 v1.0.0 的历史规则和验证记录。当前 main 的处罚已于 2026-10-24 按用户确认改为迟到分钟向上取整、默认 1 分/分钟，最新验证见 [分钟计罚验证](reports/penalty-minute.md)。
+
 ## 环境与结论
 
 本地：Windows x64、Intel Core i7-14650HX、MSVC 19.29 / Visual Studio 2019 Build Tools、C++17、Python 3.12；绘图依赖 matplotlib 3.10.7。Debug 与 Release 各 **96/96 CTest 通过**，Python 标准库数据测试 **23/23 通过**。一键演示、PNG、32 帧 GIF 已实际生成。

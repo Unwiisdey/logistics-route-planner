@@ -14,6 +14,7 @@ const fs=require('node:fs');
     await page.waitForFunction(()=>document.querySelector('[data-view=notice]').textContent.includes('已重置'));
     assert.equal(await text('completed'),'0 / 3');
     assert((await page.locator('.lp-preview').innerText()).includes('正式 UI'));
+    assert((await page.locator('.lp-footer > span').first().innerText()).includes('迟到分钟向上取整 × 1 分/分钟'));
     assert((await text('current-task')).startsWith('送货 · O'));
     assert((await text('task-path')).endsWith('返仓 · W01'));
     assert((await text('segment-total')).includes('6.00'));

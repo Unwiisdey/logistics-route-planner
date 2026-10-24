@@ -55,10 +55,13 @@ class UIHTTPTests(unittest.TestCase):
             html = response.read().decode("utf-8")
         self.assertIn("正式 UI · C++ 驱动",html)
         self.assertIn('data-view="current-task"',html)
+        self.assertIn('迟到分钟向上取整 × 1 分/分钟',html)
+        self.assertNotIn('超时每单处罚 10 分',html)
         with urlopen(self.url+"/api/state", timeout=5) as response:
             state = json.load(response)
         self.assertEqual(state["app"],"logistics-route-planner")
         self.assertEqual(state["frame"]["time"],480)
+        self.assertEqual(state["penalty_rule"],{"rate_per_minute":1.0,"rounding":"ceil","based_on":"service_start"})
 
     def test_insert_advance_and_refresh_state(self):
         inserted = self.post({"cmd":"insert","order":{"warehouse":"W01","destination":"D05",

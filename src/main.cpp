@@ -83,13 +83,14 @@ int main(int argc, char* argv[]) {
                              "Planning: [--warehouse ID] [--deliveries ID,ID,...] [--departure MINUTES]\n"
                              "          [--capacity KG] [--export DIRECTORY]\n"
                              "Simulation: --simulate [--step MINUTES] [--unload-minutes MINUTES]\n"
-                             "            [--late-penalty POINTS] [--vehicle-id ID]\n"
+                             "            [--late-penalty-per-minute POINTS] [--vehicle-id ID]\n"
+                             "            [--late-penalty POINTS] (alias; also a per-minute rate)\n"
                              "            [--cache-capacity 0..65536] (default 256; 0 disables cache)\n"
                              "            [--hard-windows | --scenario ORDER_JSON]\n"
                              "Traffic: --traffic [--traffic-interval SECONDS] [--traffic-fraction 0..1]\n"
                              "         [--traffic-seed UINT32] (defaults: 30 seconds, 0.1, 42)\n"
                              "Simulation defaults: start 480 (08:00), step 5, unload 2, capacity 1000,\n"
-                             "fixed penalty 10 points per late order. Use --departure to change start.\n"
+                             "penalty 1 point per started late minute, rounded up. Use --departure to change start.\n"
                              "Default: print adjacency list. Planning defaults to the first warehouse\n"
                              "by ID and all delivery points. Capacity is checked only when provided.\n";
                 return 0;
@@ -158,8 +159,8 @@ int main(int argc, char* argv[]) {
             } else if (argument == "--unload-minutes" && index + 1 < argc) {
                 simulation.unload_minutes = parse_number(argv[++index], argument);
                 simulation_options = true;
-            } else if (argument == "--late-penalty" && index + 1 < argc) {
-                simulation.late_penalty_points = parse_number(argv[++index], argument);
+            } else if ((argument == "--late-penalty-per-minute" || argument == "--late-penalty") && index + 1 < argc) {
+                simulation.late_penalty_per_minute = parse_number(argv[++index], argument);
                 simulation_options = true;
             } else if (argument == "--vehicle-id" && index + 1 < argc) {
                 simulation.vehicle_id = argv[++index];
@@ -251,8 +252,8 @@ int main(int argc, char* argv[]) {
             if (simulate) {
                 logistics::Simulation run(graph, plan, simulation);
                 if (traffic_enabled) { run.enable_traffic(traffic); }
-                std::cout << "Simulation: fixed penalty=" << simulation.late_penalty_points
-                          << " points/late order; window checked at unloading start.\n";
+                std::cout << "Simulation: late penalty rate=" << simulation.late_penalty_per_minute
+                          << " points/started late minute (rounded up); window checked at unloading start.\n";
                 while (!run.finished()) { run.advance(); }
                 run.write_log(std::cout);
                 if (export_directory) {

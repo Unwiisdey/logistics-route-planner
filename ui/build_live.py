@@ -28,7 +28,8 @@ def main():
     start = markup.index('  <section class="lp-timeline"')
     end = markup.index('  <div class="lp-bottom">', start)
     markup = markup[:start] + '<section class="lp-timeline"><strong data-view="live-time">08:00:00</strong><p class="lp-muted">地图标签：道路当前预计耗时。车辆在途使用入边时锁定的耗时。<a href="/replay.html">查看原记录回放</a></p></section>\n' + markup[end:]
-    markup = markup.replace('真实数据回放 · 单车', 'C++ 实时交互 · 单车')
+    markup = markup.replace('历史回放 · 单车', 'C++ 实时交互 · 单车')
+    markup = markup.replace('旧规则：超时每单处罚 10 分', '迟到分钟向上取整 × 1 分/分钟')
     markup = markup.replace('就绪，点击“开始回放”查看配送过程。', '正在连接本机仿真服务…')
     markup += '<style>#logistics-preview td small{white-space:normal;max-width:240px}#logistics-preview .lp-side{max-height:none}#logistics-preview .lp-main{align-items:start}#logistics-preview .lp-task-panel{margin-top:12px;padding-top:10px;border-top:1px solid var(--lp-line)}#logistics-preview .lp-task-panel p{color:var(--lp-text);font-size:13px;line-height:1.8;overflow-wrap:anywhere}#logistics-preview .lp-task-panel strong{color:var(--lp-teal);font-weight:500}</style>'
     source = (HERE / "interface.html").read_text(encoding="utf-8")
