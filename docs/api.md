@@ -1,4 +1,4 @@
-# C++ API 说明（v1.0.0）
+# C++ API 说明（main）
 
 命名空间 `logistics`，公开头文件位于 `include/logistics/`，核心链接目标 `logistics_core`。接口以实际头文件为准；C++17，无 GUI 类型和 nlohmann/json 类型泄漏到模型。时间为 double 分钟，数量/距离/费用为非负有限 double。
 
@@ -43,7 +43,7 @@ auto hits = cache.stats().hits;
 - `Planner::schedule(graph, route, unload_minutes)` 返回逐节点到达/出发、总等待/卸货；验证路线与图是否一致。
 - `DynamicOrder::initial(graph, context, cache=nullptr)`：初始已装货订单的启发式规划。
 - `DynamicOrder::insert(graph, context, order, cache=nullptr)`：保留已有动作相对顺序，枚举取送插入。无 cache 时本次调用内自动复用缓存。
-- `DynamicOrder::evaluate(graph, context, actions, cache=nullptr)`：逐动作检查窗口、载重、取货先后并返仓；未提供缓存时直接查最短路。
+- `DynamicOrder::evaluate(graph, context, actions, cache=nullptr)`：先按距离/成本规划；因窗口失败时，对同一动作序列以 Time 重试。所有取货、载重、窗口及返仓检查仍执行；成功兜底时 OrderRoute::time_fallback=true。未提供缓存时直接查最短路。
 - `DynamicOrder::urgent(id, warehouse, destination, quantity, received_at, deadline_after=60)`：创建紧急订单。
 - `Replanner::repair(graph, context, remaining, triggers, cache=nullptr)`：仅重搜受影响的动作区间；返回 OrderRoute、searched_legs 和预测迟到订单。searched_legs 为受影响区间请求数，使用缓存时不一定等于实际 Dijkstra 次数。
 
@@ -72,6 +72,7 @@ sim.export_csv("exports/api");
 | Simulation(Graph, warehouse, orders, start, options, strategy=ShortestDistance) | 严格初始规划；容量/窗口失败抛异常 |
 | advance() / advance(minutes) | 正值推进，内部精确处理阶段和路况；完成后不推进 |
 | wait_until(time) | 仅完成且空闲时等待，路况时钟继续运行 |
+| preview_order(order) | 只读试算，不改变任务、事件、载荷或路径；使用临时缓存 |
 | insert_order(order) | 要求已发布、ID 未用过；可拒绝；成功后在当前边/服务结束处切换 |
 | enable_traffic(options={}) | 从当前时间起按 interval 安排随机路况 |
 | apply_traffic(vector<TrafficUpdate>) | 当前时刻注入确定性事件，先整批校验，自动局部修复 |
@@ -94,3 +95,16 @@ sim.export_csv("exports/api");
 `Visualizer::export_csv(graph, plan, directory)` 验证完整静态计划；`export_network_csv` 只导出节点/道路。动态仿真使用 Simulation::export_csv，由其保存版本历史与缓存统计。CSV UTF-8，正确转义引号/逗号，数值使用独立于 locale 的小数点。
 
 输入不合法通常为 invalid_argument；未知出边起点/待更新边为 out_of_range；累计数值溢出为 overflow_error；I/O、无法完成修复等为 runtime_error。业务性拒单使用 accepted=false；图不可达用 reachable=false；调用者不得把它们当作成功路线使用。完整示例见 CLI 与 tests/integration_tests.cpp。
+
+## 双车调度接口
+
+头文件 logistics/simulation/FleetSimulation.h。FleetVehicleSpec 包含 id、warehouse、capacity_kg；ID 仅允许 ASCII 字母、数字、下划线和连字符，保证导出子目录安全。API 可为两车指定不同仓库与容量；CLI 提供同仓库、同容量的两车入口。
+
+- FleetSimulation(Graph, vector<FleetVehicleSpec>, initial_orders, start=480, options={}, strategy=ShortestDistance)：按紧急程度、截止时间和 ID 逐单分配。归属 map<OrderId,string> 对已接受订单长期保留；初始无法分配的业务拒单写入 assignments，不默默丢单。非法车辆配置、重复初始订单 ID、尚未发布的初始单抛异常。
+- insert_order(order)：先 preview_order 试算所有车辆，只对选中者正式 insert_order；返回 FleetAssignment，含 time/order_id/vehicle_id/accepted/reason/path。拒绝时无车归属，各车状态不变。紧急单先比较该单 service_start，再比较新增距离/成本，最后车辆 ID；普通单先新增距离/成本，再返仓时刻和 ID。
+- advance() / advance(minutes)：统一事件循环推进同一 SimClock。处理所有车辆阶段结束与单一路况计时；即使全车空闲也可推进，方便未来发布。非正数/非有限步长拒绝，不能为各车分别调用 advance。
+- enable_traffic / apply_traffic：统一采样或注入一批事件，候选图上预检两车修复后发布同一共享版本；仅受影响区间搜索。每车保留独立缓存、事件和路线版本。
+- clock / network / vehicle(id) / vehicle_specs / ownership / assignments：只读查询。不存在车辆抛 invalid_argument。两车 network()/clock() 引用指向同一对象。
+- finished()：所有车辆均完成；write_log 汇总与逐车日志；export_csv(path) 写 assignments.csv 与每车 ID 子目录的原仿真 CSV。车辆完成后，在共同时间线上其 snapshot.time 仍是当前时间，实际返仓时间看 Simulation::completed_at()，返仓预测和完成日志保留该时刻。根目录 traffic_options.csv 保存共享路况源参数；各车的 random_enabled=0 表示自身不采样。
+
+Simulation 不可复制、可移动，避免意外复制活动仿真时共享可变状态。单车公开构造函数仍创建独立网络和时钟，只有 FleetSimulation 内部构造才注入共享对象。

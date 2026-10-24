@@ -25,6 +25,7 @@ add_library(logistics_core STATIC
     src/simulation/SimClock.cpp
     src/simulation/Simulation.cpp
     src/simulation/SimulationOrders.cpp
+    src/simulation/FleetSimulation.cpp
     src/simulation/SimulationTraffic.cpp
 )
 target_include_directories(logistics_core PUBLIC

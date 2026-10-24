@@ -50,11 +50,11 @@ void state_row(std::ostream& out, const SimulationSnapshot& s) {
 }  // namespace
 
 Simulation::Simulation(Graph graph, RoutePlan route, SimulationOptions options)
-    : graph_(std::move(graph)), route_(std::move(route)), options_(std::move(options)),
+    : graph_(std::make_shared<Graph>(std::move(graph))), route_(std::move(route)), options_(std::move(options)),
       path_cache_(options_.path_cache_capacity),
-      timing_(Planner::schedule(graph_, route_, options_.unload_minutes)),
-      clock_(route_.departure_time, options_.step_minutes),
-      vehicle_(options_.vehicle_id, options_.capacity_kg, initial_load(graph_, route_), route_.warehouse_id) {
+      timing_(Planner::schedule(*graph_, route_, options_.unload_minutes)),
+      clock_(std::make_shared<SimClock>(route_.departure_time, options_.step_minutes)),
+      vehicle_(options_.vehicle_id, options_.capacity_kg, initial_load(*graph_, route_), route_.warehouse_id) {
     if (route_.start_node_id != route_.warehouse_id) {
         throw std::invalid_argument("initial simulation must start at its warehouse");
     }
@@ -63,14 +63,14 @@ Simulation::Simulation(Graph graph, RoutePlan route, SimulationOptions options)
     }
     for (const auto& stop : route_.stops) {
         if (stop.role != StopRole::Delivery) { continue; }
-        const auto* node = graph_.find_node(stop.node_id);
+        const auto* node = graph_->find_node(stop.node_id);
         DeliveryRecord delivery;
         delivery.order_id = "order:" + node->id();
         delivery.node_id = node->id();
         delivery.quantity = node->demand();
         delivery.window = node->time_window();
         delivery.warehouse_id = route_.warehouse_id;
-        delivery.picked_up_at = clock_.now();
+        delivery.picked_up_at = clock_->now();
         orders_.emplace_back(delivery.order_id, route_.warehouse_id, node->id(), node->demand(), node->time_window());
         delivery_steps_.emplace(stop.route_node_index, deliveries_.size());
         deliveries_.push_back(std::move(delivery));
@@ -96,14 +96,14 @@ void Simulation::enter_node() {
                     throw std::logic_error("invalid runtime pickup");
                 }
                 vehicle_.load(task.quantity);
-                task.loaded = true; task.picked_up_at = clock_.now();
+                task.loaded = true; task.picked_up_at = clock_->now();
                 record("pickup", task.order_id);
                 continue;
             }
             if (!task.loaded || task.delivered_at) { throw std::logic_error("runtime delivery without cargo"); }
             active_delivery_ = index;
-            task.arrival = clock_.now();
-            if (task.window && clock_.now() < task.window->earliest) {
+            task.arrival = clock_->now();
+            if (task.window && clock_->now() < task.window->earliest) {
                 vehicle_.status_ = VehicleStatus::Waiting;
                 phase_end_ = task.window->earliest;
                 record("wait", task.order_id);
@@ -117,8 +117,8 @@ void Simulation::enter_node() {
     if (delivery == delivery_steps_.end()) { leave_node(); return; }
     active_delivery_ = delivery->second;
     auto& task = deliveries_[*active_delivery_];
-    task.arrival = clock_.now();
-    if (task.window && clock_.now() < task.window->earliest) {
+    task.arrival = clock_->now();
+    if (task.window && clock_->now() < task.window->earliest) {
         vehicle_.status_ = VehicleStatus::Waiting;
         phase_end_ = task.window->earliest;
         record("wait", task.order_id);
@@ -126,29 +126,30 @@ void Simulation::enter_node() {
 }
 void Simulation::begin_unloading() {
     auto& task = deliveries_[*active_delivery_];
-    task.service_start = clock_.now();
-    task.late_minutes = task.window ? task.window->evaluate(clock_.now()).late_minutes : 0;
+    task.service_start = clock_->now();
+    task.late_minutes = task.window ? task.window->evaluate(clock_->now()).late_minutes : 0;
     vehicle_.status_ = VehicleStatus::Unloading;
-    phase_end_ = detail::checked_sum(clock_.now(), options_.unload_minutes);
+    phase_end_ = detail::checked_sum(clock_->now(), options_.unload_minutes);
     record(task.late_minutes > 0 ? "unload_late" : "unload_on_time", task.order_id);
 }
 void Simulation::leave_node() {
     if (route_index_ == route_.road_sequence.size()) {
         finished_ = true;
+        returned_at_ = clock_->now();
         vehicle_.status_ = VehicleStatus::Idle;
-        phase_end_ = clock_.now();
+        phase_end_ = clock_->now();
         record("returned");
         return;
     }
-    const auto* edge = graph_.find_edge_by_id(route_.road_sequence[route_index_]);
+    const auto* edge = graph_->find_edge_by_id(route_.road_sequence[route_index_]);
     vehicle_.depart(edge->id(), edge->from_id(), edge->to_id(), edge->time());
-    phase_end_ = detail::checked_sum(clock_.now(), edge->time());
+    phase_end_ = detail::checked_sum(clock_->now(), edge->time());
     record("depart");
 }
 void Simulation::finish_phase() {
     if (vehicle_.status() == VehicleStatus::Driving) {
         const auto road = vehicle_.segment()->road_id;
-        traversals_.emplace_back(clock_.now(), road);
+        traversals_.emplace_back(clock_->now(), road);
         vehicle_.arrive();
         ++route_index_;
         record("arrive", road);
@@ -166,7 +167,7 @@ void Simulation::finish_phase() {
             if (&previous == &task) { total_penalty = detail::checked_sum(total_penalty, penalty); }
             else if (previous.delivered_at) { total_penalty = detail::checked_sum(total_penalty, previous.penalty_points); }
         }
-        task.delivered_at = clock_.now();
+        task.delivered_at = clock_->now();
         task.penalty_points = penalty;
         vehicle_.unload(task.quantity);
         task.loaded = false;
@@ -179,23 +180,26 @@ void Simulation::finish_phase() {
 }
 void Simulation::settle_instant_events() {
     // Each transition consumes a road, a wait or an unloading event: zero-time roads terminate.
-    while (!finished_ && phase_end_ == clock_.now()) { finish_phase(); }
+    while (!finished_ && phase_end_ == clock_->now()) { finish_phase(); }
 }
-void Simulation::advance() { advance(clock_.step()); }
+void Simulation::update_travel_remaining() {
+    if (vehicle_.segment()) {
+        vehicle_.update_remaining(std::min(vehicle_.segment()->duration, std::max(0.0, phase_end_ - clock_->now())));
+    }
+}
+void Simulation::advance() { advance(clock_->step()); }
 void Simulation::advance(Minutes minutes) {
     if (!std::isfinite(minutes) || minutes <= 0) { throw std::invalid_argument("advance must be finite and positive"); }
     if (finished_) { return; }
-    const double target = detail::checked_sum(clock_.now(), minutes);
-    if (target == clock_.now()) { throw std::overflow_error("step is below numeric precision"); }
-    while (!finished_ && clock_.now() < target) {
+    const double target = detail::checked_sum(clock_->now(), minutes);
+    if (target == clock_->now()) { throw std::overflow_error("step is below numeric precision"); }
+    while (!finished_ && clock_->now() < target) {
         const double next = traffic_ ? std::min({target, phase_end_, next_traffic_}) : std::min(target, phase_end_);
-        clock_.advance(next - clock_.now());
-        if (vehicle_.status() == VehicleStatus::Driving) {
-            vehicle_.update_remaining(std::min(vehicle_.segment()->duration, std::max(0.0, phase_end_ - clock_.now())));
-        }
+        clock_->advance(next - clock_->now());
+        update_travel_remaining();
         // Traffic at an arrival boundary updates future roads before departing again.
-        if (traffic_ && clock_.now() == next_traffic_) { traffic_tick(); }
-        if (clock_.now() == phase_end_) { finish_phase(); settle_instant_events(); }
+        if (traffic_ && clock_->now() == next_traffic_) { traffic_tick(); }
+        if (clock_->now() == phase_end_) { finish_phase(); settle_instant_events(); }
     }
     if (!finished_) { record("tick"); }
     history_.push_back(snapshot());
@@ -203,7 +207,7 @@ void Simulation::advance(Minutes minutes) {
 
 SimulationSnapshot Simulation::snapshot() const {
     SimulationSnapshot state;
-    state.time = clock_.now();
+    state.time = clock_->now();
     state.status = vehicle_.status();
     state.node_id = vehicle_.position().node_id;
     state.edge_id = vehicle_.position().road_id;
@@ -218,10 +222,10 @@ SimulationSnapshot Simulation::snapshot() const {
         const auto remaining = remaining_order_route();
         state.future_nodes = remaining.nodes; state.future_roads = remaining.roads;
     }
-    state.remaining_minutes = state.status == VehicleStatus::Idle ? 0 : std::max(0.0, phase_end_ - clock_.now());
+    state.remaining_minutes = state.status == VehicleStatus::Idle ? 0 : std::max(0.0, phase_end_ - clock_->now());
     const auto* forecast = pending_route_ ? &*pending_route_ : (forecast_ ? &*forecast_ : nullptr);
     if (forecast) {
-        state.estimated_return = finished_ ? clock_.now() : forecast->finish_time;
+        state.estimated_return = finished_ ? returned_at_.value_or(clock_->now()) : forecast->finish_time;
         if (active_delivery_) {
             const auto& delivery = deliveries_[*active_delivery_];
             state.next_order = delivery.order_id; state.next_arrival = delivery.arrival;
@@ -236,12 +240,12 @@ SimulationSnapshot Simulation::snapshot() const {
     if (vehicle_.segment()) {
         state.from_id = vehicle_.segment()->from_id;
         state.to_id = vehicle_.segment()->to_id;
-        const auto* from = graph_.find_node(state.from_id);
-        const auto* to = graph_.find_node(state.to_id);
+        const auto* from = graph_->find_node(state.from_id);
+        const auto* to = graph_->find_node(state.to_id);
         state.x = (1 - state.progress) * from->x() + state.progress * to->x();
         state.y = (1 - state.progress) * from->y() + state.progress * to->y();
     } else {
-        const auto* node = graph_.find_node(*state.node_id);
+        const auto* node = graph_->find_node(*state.node_id);
         state.x = node->x(); state.y = node->y();
     }
     for (const auto& task : deliveries_) {
@@ -260,7 +264,7 @@ std::vector<NodeId> Simulation::remaining_deliveries() const {
 }
 void Simulation::write_log(std::ostream& out) const {
     out << std::fixed << std::setprecision(2);
-    out << "Vehicle " << vehicle_.id() << " capacity=" << vehicle_.capacity() << " kg; step=" << clock_.step()
+    out << "Vehicle " << vehicle_.id() << " capacity=" << vehicle_.capacity() << " kg; step=" << clock_->step()
         << " min; unload=" << options_.unload_minutes << " min; late penalty rate=" << options_.late_penalty_per_minute
         << " points/started late minute (rounded up; service-start lateness)\n";
     for (const auto& event : events_) {
@@ -294,12 +298,13 @@ void Simulation::write_log(std::ostream& out) const {
     for (const auto& decision : insertions_) {
         if (!decision.accepted) { out << "  " << decision.order_id << ": " << decision.reason << '\n'; }
     }
+    const auto finish = finished_ ? returned_at_.value_or(s.time) : s.time;
     out << "Simulation " << (finished_ ? "complete" : "in progress") << ": delivered=" << s.delivered_count
-        << " late=" << s.late_count << " penalty=" << s.penalty_points << " points; finish=" << SimClock::format(s.time)
-        << " elapsed=" << s.time - route_.departure_time << " min\n";
+        << " late=" << s.late_count << " penalty=" << s.penalty_points << " points; finish=" << SimClock::format(finish)
+        << " elapsed=" << finish - route_.departure_time << " min\n";
 }
 void Simulation::export_csv(const std::filesystem::path& directory) const {
-    if (!order_mode_) { Visualizer::export_csv(graph_, route_, directory); }
+    if (!order_mode_) { Visualizer::export_csv(*graph_, route_, directory); }
     else {
         std::filesystem::create_directories(directory);
         auto revisions = open_csv(directory / "route_revisions.csv");
@@ -330,7 +335,7 @@ void Simulation::export_csv(const std::filesystem::path& directory) const {
     }
     auto settings = open_csv(directory / "simulation_options.csv");
     settings << "vehicle_id,capacity_kg,start_minutes,step_minutes,unload_minutes,late_penalty_per_minute,penalty_rounding,path_cache_capacity\n"
-             << csv(vehicle_.id()) << ',' << vehicle_.capacity() << ',' << route_.departure_time << ',' << clock_.step()
+             << csv(vehicle_.id()) << ',' << vehicle_.capacity() << ',' << route_.departure_time << ',' << clock_->step()
              << ',' << options_.unload_minutes << ',' << options_.late_penalty_per_minute << ",ceil," << options_.path_cache_capacity << '\n';
     auto cache_file = open_csv(directory / "path_cache.csv");
     const auto& cache = path_cache_.stats();

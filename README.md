@@ -2,7 +2,7 @@
 
 [![Build and test](https://github.com/Unwiisdey/logistics-route-planner/actions/workflows/ci.yml/badge.svg)](https://github.com/Unwiisdey/logistics-route-planner/actions/workflows/ci.yml)
 
-**C++17 物流配送系统（含正式本地 Web 界面）**。使用 C++17 有向带权图模拟单车辆城市配送，包含订单、窗口、载重、动态插单、路况变化及局部重规划。课程原文需求映射见 [requirements.md](docs/requirements.md)。
+**C++17 物流配送系统（含正式本地 Web 界面）**。使用 C++17 有向带权图模拟单车与双车城市配送，包含订单、窗口、载重、动态插单、路况变化及局部重规划。课程原文需求映射见 [requirements.md](docs/requirements.md)。
 
 [用户手册](docs/user-manual.md) · [设计文档](docs/design.md) · [API](docs/api.md) · [测试报告](docs/test-report.md) · [演示与答辩](docs/demo/README.md) · [项目验收管理](docs/project-management.md) · [版本记录](CHANGELOG.md) · [GitHub Releases](https://github.com/Unwiisdey/logistics-route-planner/releases)
 
@@ -20,12 +20,13 @@
 | --- | --- |
 | 图与配置 | 邻接表、节点/边增删、邻接矩阵、JSON 校验；30 节点、98 有向道路，2 仓库、25 配送点、3 中转站 |
 | 基础规划 | 最小优先队列 Dijkstra，距离/成本策略，最近邻单车辆闭合行程 |
-| 订单 | 独立订单 ID、同点多单、硬窗口接单、紧急取送插入、真实仓库取货、全程载重检查 |
+| 订单 | 独立订单 ID、硬窗口接单、距离/成本路线超时则尝试耗时最短、真实取货与载重检查 |
+| 双车 | 共享路网与时钟、初始分单、订单归属固定、紧急订单分别试算后分配；CLI / C++ 可用 |
 | 仿真 | 连续模拟时钟、车辆在边上的位置、等待/卸货、迟到分钟向上取整计罚 |
 | 路况 | 默认每 30 秒选取约 10% 道路，增时至少 20% 触发受影响取送区间修复 |
 | 优化 | 有界最短路缓存、图版本自动失效、目标提前停止；保留未受影响区间 |
 | 展示 | 正式本地 Web 界面、手动插单、当前任务与任务路径；保留 CSV、PNG、GIF 和历史回放 |
-| 验证 | 核心历史 Debug / Release 各 96 项 CTest；正式 UI 集成后 Release 98 项通过，另有 23 项 Python 回放测试 |
+| 验证 | 核心历史 Debug / Release 各 96 项 CTest；双车与省时兜底加入后 Release 112 项通过，另有 23 项 Python 回放测试 |
 
 时间单位为分钟，货物 kg、距离 km、费用元。08:00 对应 480。早到等待，在开始卸货时检查闭区间窗口；处罚为迟到分钟数向上取整 × 每分钟分值，默认 1 分/分钟；例如迟到 2 分 30 秒计 3 分，与运输成本分开统计。
 
@@ -65,6 +66,16 @@ ctest --test-dir build --output-on-failure
 ```
 
 示例订单包含成功插入、超载拒绝和窗口拒绝。Windows 本次 seed=42 完成 4 单，0 单超时，0 分处罚，约 10:56:08 空车返仓。不同标准库随机结果可能不同；[保存的演示数据](docs/examples/stage6/README.md) 可直接回放。
+
+## 双车运行（CLI）
+
+```powershell
+.\build\Release\logistics_app.exe --plan distance --simulate --vehicles 2 --scenario config/orders.json --capacity 40 --traffic --export exports/fleet
+```
+
+两辆车共用同一份路网和时钟，各自维护货物、任务与路径。--capacity 是每辆车的上限；默认 V01 / V02 从所选仓库出发。初始订单按优先级/截止时间逐个分配，归属固定；紧急订单对两车分别检查，优先分给能更早送达且不违反已有窗口的车辆。输出分配/拒绝原因、各车日志、总计以及 assignments.csv 和 V01/、V02/ 导出目录。完整规则见 [双车设计与使用](docs/fleet.md)。
+
+**现有 Web UI 仍是单车界面，本次没有修改 UI 代码。** 双车界面规划见 [UI 设计方案](docs/fleet-ui-design.md)。省时兜底已由共用 C++ 核心生效：仅当距离/成本候选会超时，才对同一动作序列尝试耗时最短，并重新检查全部约束。
 
 ## 可视化与一键演示
 
@@ -115,6 +126,6 @@ third_party/         nlohmann/json 3.12.0 及 MIT 许可证
 
 ## 设计限制与版本管理
 
-单车辆；静态最近邻与订单插入均为启发式，不保证整条路线全局最优。两点成本最优的贪心巡回甚至可能比距离贪心更贵，历史示例如实保留。硬窗口是在接单时按当前信息检查，后续拥堵导致的实际违约仍按迟到分钟向上取整计罚。当前不提供运行中封路/删边、多车、真实 GPS 或联网交通。
+支持单车及基础双车调度；静态最近邻与订单插入均为启发式，不保证整条路线全局最优。两点成本最优的贪心巡回甚至可能比距离贪心更贵，历史示例如实保留。硬窗口是在接单时按当前信息检查，后续拥堵导致的实际违约仍按迟到分钟向上取整计罚。当前不提供运行中封路/删边、跨车转单、真实 GPS 或联网交通。省时兜底在订单硬窗口模式生效；旧静态 Planner 保留原策略。
 
 第 1～7 阶段已完成本次要求的交付。代码修改经审查和相关测试后以明确 commit 同步；最终版本使用 v1.0.0 标签和 Release。GitHub 的 [Issues](https://github.com/Unwiisdey/logistics-route-planner/issues) 与 [Milestones](https://github.com/Unwiisdey/logistics-route-planner/milestones) 记录优化、验证、文档展示的验收情况。缺陷报告请附命令、最小配置、种子和工具链。

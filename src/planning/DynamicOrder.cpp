@@ -50,8 +50,9 @@ Order DynamicOrder::urgent(OrderId id, NodeId warehouse, NodeId destination, dou
     return Order(std::move(id), std::move(warehouse), std::move(destination), quantity,
                  TimeWindow{received_at, detail::checked_sum(received_at, deadline_after)}, OrderPriority::Urgent, received_at);
 }
-InsertionResult DynamicOrder::evaluate(const Graph& graph, const OrderPlanningContext& ctx,
-                                       const std::vector<OrderAction>& sequence, ShortestPathCache* cache) {
+namespace {
+InsertionResult evaluate_with_metric(const Graph& graph, const OrderPlanningContext& ctx,
+                                     const std::vector<OrderAction>& sequence, ShortestPathCache* cache, WeightMetric metric) {
     validate(graph, ctx);
     if (ctx.current_load - ctx.capacity > 1e-9) { return reject("initial load exceeds capacity"); }
     std::map<OrderId, const Order*> orders;
@@ -62,7 +63,6 @@ InsertionResult DynamicOrder::evaluate(const Graph& graph, const OrderPlanningCo
     route.nodes.push_back(ctx.start_node);
     route.start_time = ctx.start_time;
     double now = ctx.start_time, load = std::min(ctx.current_load, ctx.capacity);
-    const auto metric = ctx.strategy == RouteStrategy::ShortestDistance ? WeightMetric::Distance : WeightMetric::Cost;
     const auto travel_to = [&](const NodeId& target) {
         const auto path = cache ? cache->query(graph, route.nodes.back(), target, metric)
                                 : Dijkstra::shortest_path(graph, route.nodes.back(), target, metric);
@@ -111,6 +111,21 @@ InsertionResult DynamicOrder::evaluate(const Graph& graph, const OrderPlanningCo
     if (!travel_to(ctx.warehouse)) { return reject("cannot return to warehouse"); }
     route.finish_time = now;
     return {true, "all remaining windows, pickup precedence and capacity checked", std::move(route)};
+}
+}  // namespace
+InsertionResult DynamicOrder::evaluate(const Graph& graph, const OrderPlanningContext& ctx,
+                                       const std::vector<OrderAction>& sequence, ShortestPathCache* cache) {
+    const auto metric = ctx.strategy == RouteStrategy::ShortestDistance ? WeightMetric::Distance : WeightMetric::Cost;
+    auto result = evaluate_with_metric(graph, ctx, sequence, cache, metric);
+    if (!result.accepted && result.reason.rfind("time window missed:", 0) == 0) {
+        auto faster = evaluate_with_metric(graph, ctx, sequence, cache, WeightMetric::Time);
+        if (faster.accepted) {
+            faster.route.time_fallback = true;
+            faster.reason = "time fallback: preferred distance/cost paths miss a window; fastest paths satisfy all constraints";
+            return faster;
+        }
+    }
+    return result;
 }
 InsertionResult DynamicOrder::insert(const Graph& graph, const OrderPlanningContext& ctx, const Order& order,
                                      ShortestPathCache* cache) {

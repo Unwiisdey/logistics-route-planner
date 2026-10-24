@@ -26,6 +26,7 @@ struct OrderRoute {
     double distance{0};
     double cost{0};
     Minutes travel{0};
+    bool time_fallback{false};  // Fastest paths rescued an otherwise late candidate.
 };
 struct OrderPlanningContext {
     NodeId start_node;

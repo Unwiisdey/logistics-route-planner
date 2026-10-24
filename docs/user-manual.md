@@ -119,7 +119,7 @@ Path cache 日志的 misses 表示实际最短路请求，hits 表示避免了�
 退出码 0 为成功；非法参数、配置、严格初始规划失败为 1；静态规划无法生成可行行程为 2。优先看 Error/Planning failed、订单拒绝原因和 window_risk。
 
 - 找不到配置：在项目根目录运行，或传 --config / --scenario。修改配置后重新构建可更新程序旁副本。
-- 初始载重过大：减少 initial_orders 数量或增加 --capacity，不会自动拆车。
+- 初始载重过大：单车模式减少 initial_orders 或增加 --capacity；双车使用 --vehicles 2，仍不拆分同一笔订单。
 - 窗口失败：检查模拟分钟、行驶和等待时间；“未找到可行插入”不等于不存在其他访问顺序。
 - 找不到 matplotlib：使用同一个 Python 安装并运行 scripts/requirements.txt；纯 C++ 和无图演示不需要它。
 - 旧查看器拒绝版本数据：带 --traffic 的导出使用 plot_traffic.py。
@@ -127,3 +127,15 @@ Path cache 日志的 misses 表示实际最短路请求，hits 表示避免了�
 - 不同平台随机结果不同：随机分布/洗牌的标准库实现可不同；要重现同一图像直接读取仓库保存的 CSV。
 
 发现缺陷时在 GitHub 使用缺陷模板，附版本、工具链、命令、种子和最小配置，勿上传个人信息。
+
+## 双车命令行
+
+```powershell
+.\build\Release\logistics_app.exe --plan distance --simulate --vehicles 2 --scenario config/orders.json --capacity 40 --traffic --export exports/fleet
+```
+
+--vehicles 省略或 1 时沿用单车；只接受 1/2，必须搭配 --simulate。2 自动使用订单硬窗口规划，可结合 --scenario，或用 --deliveries 从节点需求生成订单。两辆车从 --warehouse 出发，容量分别为 --capacity；默认 ID 为 V01/V02，修改 --vehicle-id 后第二辆追加 _2。
+
+订单先按约束判断，再比较方案。距离/成本路径预计超时，会尝试耗时最短；仍不满足全部剩余窗口、取送和容量则拒绝。旧静态 --plan（未进入硬窗口订单模式）不改变算法。
+
+导出目录含 assignments.csv、V01/、V02/；可分别将车辆子目录交给原 plot_traffic.py 回放，尚无两车叠加画图。现有 Web UI 仍为单车，不会因启动器自动切换双车；[双车 UI 设计方案](fleet-ui-design.md) 仅为后续设计。

@@ -3,6 +3,7 @@
 #include "logistics/planning/Planner.h"
 #include "logistics/visualization/Visualizer.h"
 #include "logistics/simulation/Simulation.h"
+#include "logistics/simulation/FleetSimulation.h"
 #include <algorithm>
 #include <cmath>
 #include <limits>
@@ -70,6 +71,7 @@ int main(int argc, char* argv[]) {
         bool explicit_departure = false;
         bool hard_windows = false;
         bool traffic_enabled = false;
+        int vehicle_count = 1;
         logistics::TrafficOptions traffic;
         std::optional<std::filesystem::path> scenario_path;
         logistics::SimulationOptions simulation;
@@ -87,6 +89,7 @@ int main(int argc, char* argv[]) {
                              "            [--late-penalty POINTS] (alias; also a per-minute rate)\n"
                              "            [--cache-capacity 0..65536] (default 256; 0 disables cache)\n"
                              "            [--hard-windows | --scenario ORDER_JSON]\n"
+                             "Fleet: --vehicles 2 (requires --simulate; uses hard windows and fixed ownership)\n"
                              "Traffic: --traffic [--traffic-interval SECONDS] [--traffic-fraction 0..1]\n"
                              "         [--traffic-seed UINT32] (defaults: 30 seconds, 0.1, 42)\n"
                              "Simulation defaults: start 480 (08:00), step 5, unload 2, capacity 1000,\n"
@@ -139,6 +142,11 @@ int main(int argc, char* argv[]) {
                     traffic.seed = static_cast<std::uint32_t>(value);
                 }
                 traffic_enabled = true; simulation_options = true;
+            } else if (argument == "--vehicles" && index + 1 < argc) {
+                const std::string value = argv[++index];
+                if (value != "1" && value != "2") { throw std::invalid_argument("--vehicles expects 1 or 2"); }
+                vehicle_count = value == "2" ? 2 : 1;
+                simulation_options = true;
             } else if (argument == "--hard-windows") {
                 hard_windows = true;
                 simulation_options = true;
@@ -179,6 +187,7 @@ int main(int argc, char* argv[]) {
         if (plan_enabled && (summary_only || matrix)) { throw std::invalid_argument("--plan cannot be combined with --summary or --matrix"); }
         if (!plan_enabled && planning_options) { throw std::invalid_argument("planning options require --plan"); }
         if (!simulate && simulation_options) { throw std::invalid_argument("simulation options require --simulate"); }
+        if (vehicle_count == 2) { hard_windows = true; }
         if (simulate) {
             if (!explicit_departure) { request.departure_time = 480; }
             simulation.capacity_kg = request.capacity_kg.value_or(simulation.capacity_kg);
@@ -209,7 +218,9 @@ int main(int argc, char* argv[]) {
                     if (request.delivery_node_ids) { throw std::invalid_argument("--scenario cannot be combined with --deliveries"); }
                     scenario = logistics::OrderConfigLoader::load(*scenario_path);
                 } else {
-                    const auto basic = logistics::Planner::plan(graph, request);
+                    auto basic_request = request;
+                    if (vehicle_count == 2) { basic_request.capacity_kg.reset(); }
+                    const auto basic = logistics::Planner::plan(graph, basic_request);
                     if (basic.status != logistics::PlanStatus::Feasible) { throw std::invalid_argument(basic.diagnostic); }
                     for (const auto& id : basic.requested_delivery_node_ids) {
                         const auto* node = graph.find_node(id);
@@ -218,6 +229,31 @@ int main(int argc, char* argv[]) {
                 }
                 for (const auto& order : scenario.dynamic_orders) {
                     if (order.release_time() < request.departure_time) { throw std::invalid_argument("dynamic order release precedes simulation start"); }
+                }
+                if (vehicle_count == 2) {
+                    const auto second_id = simulation.vehicle_id == "V01" ? "V02" : simulation.vehicle_id + "_2";
+                    logistics::FleetSimulation fleet(graph, {{simulation.vehicle_id, request.warehouse_id, simulation.capacity_kg},
+                                                             {second_id, request.warehouse_id, simulation.capacity_kg}},
+                                                      scenario.initial_orders, request.departure_time, simulation, request.strategy);
+                    if (traffic_enabled) { fleet.enable_traffic(traffic); }
+                    std::size_t next = 0;
+                    while (!fleet.finished() || next < scenario.dynamic_orders.size()) {
+                        if (next < scenario.dynamic_orders.size() && scenario.dynamic_orders[next].release_time() <= fleet.clock().now()) {
+                            fleet.insert_order(scenario.dynamic_orders[next++]); continue;
+                        }
+                        double delta = simulation.step_minutes;
+                        if (next < scenario.dynamic_orders.size()) {
+                            delta = fleet.finished() ? scenario.dynamic_orders[next].release_time() - fleet.clock().now()
+                                                    : std::min(delta, scenario.dynamic_orders[next].release_time() - fleet.clock().now());
+                        }
+                        fleet.advance(delta);
+                    }
+                    fleet.write_log(std::cout);
+                    if (export_directory) {
+                        fleet.export_csv(*export_directory);
+                        std::cout << "Fleet CSV exported to: " << export_directory->u8string() << '\n';
+                    }
+                    return 0;
                 }
                 logistics::Simulation run(graph, request.warehouse_id, scenario.initial_orders, request.departure_time, simulation, request.strategy);
                 if (traffic_enabled) { run.enable_traffic(traffic); }

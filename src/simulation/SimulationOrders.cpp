@@ -16,21 +16,27 @@ double cargo_sum(const std::vector<Order>& orders) {
 }  // namespace
 
 void Simulation::wait_until(Minutes time) {
-    if (!finished_ || vehicle_.status() != VehicleStatus::Idle || !std::isfinite(time) || time < clock_.now()) {
+    if (!finished_ || vehicle_.status() != VehicleStatus::Idle || !std::isfinite(time) || time < clock_->now()) {
         throw std::invalid_argument("wait_until requires a completed idle vehicle and a future time");
     }
     while (traffic_ && next_traffic_ <= time) {
-        clock_.advance(next_traffic_ - clock_.now());
+        clock_->advance(next_traffic_ - clock_->now());
         traffic_tick();
     }
-    clock_.advance(time - clock_.now());
+    clock_->advance(time - clock_->now());
     record("idle_wait"); history_.push_back(snapshot());
 }
 
 Simulation::Simulation(Graph graph, const NodeId& warehouse, std::vector<Order> orders, Minutes start,
                        SimulationOptions options, RouteStrategy strategy)
-    : graph_(std::move(graph)), options_(std::move(options)), path_cache_(options_.path_cache_capacity), clock_(start, options_.step_minutes),
+    : Simulation(std::make_shared<Graph>(std::move(graph)), std::make_shared<SimClock>(start, options.step_minutes),
+                 warehouse, std::move(orders), options, strategy) {}
+
+Simulation::Simulation(std::shared_ptr<Graph> graph, std::shared_ptr<SimClock> clock, const NodeId& warehouse,
+                       std::vector<Order> orders, SimulationOptions options, RouteStrategy strategy)
+    : graph_(std::move(graph)), options_(std::move(options)), path_cache_(options_.path_cache_capacity), clock_(std::move(clock)),
       vehicle_(options_.vehicle_id, options_.capacity_kg, cargo_sum(orders), warehouse), order_mode_(true) {
+    const auto start = clock_->now();
     if (!std::isfinite(options_.late_penalty_per_minute) || options_.late_penalty_per_minute < 0) {
         throw std::invalid_argument("late penalty rate must be finite and nonnegative");
     }
@@ -42,7 +48,7 @@ Simulation::Simulation(Graph graph, const NodeId& warehouse, std::vector<Order> 
     ctx.capacity = vehicle_.capacity(); ctx.current_load = vehicle_.current_load();
     ctx.unload_minutes = options_.unload_minutes; ctx.strategy = strategy; ctx.orders = orders;
     for (const auto& order : orders) { ctx.loaded.insert(order.id()); }
-    auto planned = DynamicOrder::initial(graph_, ctx, &path_cache_);
+    auto planned = DynamicOrder::initial(*graph_, ctx, &path_cache_);
     if (!planned.accepted) { throw std::invalid_argument("hard-window initial planning failed: " + planned.reason); }
     for (const auto& order : orders) { add_order_record(order, true); }
     apply_order_route(std::move(planned.route));
@@ -57,7 +63,7 @@ void Simulation::add_order_record(const Order& order, bool loaded) {
     task.order_id = order.id(); task.node_id = order.delivery_node_id(); task.quantity = order.quantity();
     task.window = order.time_window(); task.warehouse_id = order.warehouse_id(); task.priority = order.priority();
     task.loaded = loaded;
-    if (loaded) { task.picked_up_at = clock_.now(); }
+    if (loaded) { task.picked_up_at = clock_->now(); }
     deliveries_.push_back(std::move(task));
 }
 std::size_t Simulation::order_index(const OrderId& id) const {
@@ -71,7 +77,7 @@ OrderPlanningContext Simulation::order_context() const {
     ctx.warehouse = route_.warehouse_id;
     ctx.capacity = vehicle_.capacity(); ctx.current_load = vehicle_.current_load();
     ctx.unload_minutes = options_.unload_minutes; ctx.strategy = route_.strategy;
-    ctx.start_time = clock_.now();
+    ctx.start_time = clock_->now();
     if (vehicle_.segment()) {
         ctx.start_node = vehicle_.segment()->to_id;
         ctx.start_time = phase_end_;
@@ -101,13 +107,13 @@ OrderPlanningContext Simulation::order_context() const {
     }
     return ctx;
 }
-InsertionResult Simulation::insert_order(const Order& order) {
+InsertionResult Simulation::plan_insertion(const Order& order, ShortestPathCache* cache) const {
     InsertionResult result;
     const auto ctx = order_context();
     for (const auto& existing : orders_) {
         if (existing.id() == order.id()) { result.reason = "duplicate order ID (including completed orders)"; }
     }
-    if (order.release_time() > clock_.now()) { result.reason = "order has not been released"; }
+    if (order.release_time() > clock_->now()) { result.reason = "order has not been released"; }
     if (active_delivery_) {
         const auto& locked = deliveries_[*active_delivery_];
         const auto start = locked.service_start.value_or(phase_end_);
@@ -116,11 +122,20 @@ InsertionResult Simulation::insert_order(const Order& order) {
         }
     }
     if (result.reason.empty()) {
-        try { result = DynamicOrder::insert(graph_, ctx, order, &path_cache_); }
+        try { result = DynamicOrder::insert(*graph_, ctx, order, cache); }
         catch (const std::invalid_argument& error) { result.reason = error.what(); }
         catch (const std::overflow_error& error) { result.reason = error.what(); }
     }
-    insertions_.push_back({clock_.now(), order.id(), result.accepted, result.reason, ctx.start_time, result.route.nodes});
+    return result;
+}
+InsertionResult Simulation::preview_order(const Order& order) const {
+    ShortestPathCache cache(options_.path_cache_capacity);
+    return plan_insertion(order, &cache);
+}
+InsertionResult Simulation::insert_order(const Order& order) {
+    const auto ctx = order_context();
+    auto result = plan_insertion(order, &path_cache_);
+    insertions_.push_back({clock_->now(), order.id(), result.accepted, result.reason, ctx.start_time, result.route.nodes});
     if (!result.accepted) {
         record("order_rejected", order.id() + ": " + result.reason);
         return result;  // No vehicle, plan, accepted task or cargo mutation.
@@ -149,13 +164,13 @@ InsertionResult Simulation::insert_order(const Order& order) {
 }
 void Simulation::apply_order_route(OrderRoute route) {
     if (!vehicle_.position().node_id || *vehicle_.position().node_id != route.nodes.front() ||
-        std::abs(clock_.now() - route.start_time) > 1e-8) {
+        std::abs(clock_->now() - route.start_time) > 1e-8) {
         throw std::logic_error("route activation does not match vehicle anchor");
     }
     route_.node_sequence = route.nodes; route_.road_sequence = route.roads;
     forecast_ = route;
     route_.start_node_id = route.nodes.front();
-    route_index_ = 0; finished_ = false;
+    route_index_ = 0; finished_ = false; returned_at_.reset();
     order_actions_.clear();
     for (const auto& stop : route.stops) { order_actions_.emplace_back(stop.node_index, stop.action); }
     ++revision_;
@@ -173,7 +188,7 @@ void Simulation::apply_order_route(OrderRoute route) {
             now = action.departure;
         }
         timing_.departures.push_back(now);
-        if (node < route.roads.size()) { now = detail::checked_sum(now, graph_.find_edge_by_id(route.roads[node])->time()); }
+        if (node < route.roads.size()) { now = detail::checked_sum(now, graph_->find_edge_by_id(route.roads[node])->time()); }
     }
     revisions_.push_back({revision_, std::move(route)});
 }

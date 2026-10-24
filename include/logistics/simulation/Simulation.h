@@ -8,6 +8,7 @@
 #include <filesystem>
 #include <iosfwd>
 #include <map>
+#include <memory>
 
 namespace logistics {
 struct SimulationOptions {
@@ -94,10 +95,15 @@ public:
     // Strict initial planning with independent order IDs (including several orders at one node).
     Simulation(Graph graph, const NodeId& warehouse, std::vector<Order> orders, Minutes start,
                SimulationOptions options = {}, RouteStrategy strategy = RouteStrategy::ShortestDistance);
+    Simulation(const Simulation&) = delete;
+    Simulation& operator=(const Simulation&) = delete;
+    Simulation(Simulation&&) noexcept = default;
+    Simulation& operator=(Simulation&&) noexcept = default;
+    InsertionResult preview_order(const Order& order) const;
     InsertionResult insert_order(const Order& order);
     void enable_traffic(TrafficOptions options = {});
     void apply_traffic(const std::vector<TrafficUpdate>& updates);
-    const Graph& network() const noexcept { return graph_; }
+    const Graph& network() const noexcept { return *graph_; }
     const PathCacheStats& path_cache_stats() const noexcept { return path_cache_.stats(); }
     const std::vector<TrafficChange>& traffic_changes() const noexcept { return traffic_changes_; }
     const std::vector<ReplanningRecord>& replanning_records() const noexcept { return replanning_records_; }
@@ -105,7 +111,8 @@ public:
     void advance(Minutes minutes);
     void wait_until(Minutes time);  // Only after returning, for future released orders.
     bool finished() const noexcept { return finished_; }
-    const SimClock& clock() const noexcept { return clock_; }
+    std::optional<Minutes> completed_at() const noexcept { return returned_at_; }
+    const SimClock& clock() const noexcept { return *clock_; }
     const Vehicle& vehicle() const noexcept { return vehicle_; }
     const RouteTiming& expected_timing() const noexcept { return timing_; }
     const std::vector<DeliveryRecord>& deliveries() const noexcept { return deliveries_; }
@@ -119,10 +126,17 @@ public:
     // Also exports the static route/network CSVs understood by plot_network.py.
     void export_csv(const std::filesystem::path& directory) const;
 private:
+    friend class FleetSimulation;
+    Simulation(std::shared_ptr<Graph> graph, std::shared_ptr<SimClock> clock, const NodeId& warehouse,
+               std::vector<Order> orders, SimulationOptions options, RouteStrategy strategy);
+    InsertionResult plan_insertion(const Order& order, ShortestPathCache* cache) const;
+    void commit_traffic(const std::vector<TrafficChange>& changes, ReplanResult repaired,
+                        const OrderRoute& old, const OrderPlanningContext& ctx);
     void enter_node();
     void leave_node();
     void begin_unloading();
     void finish_phase();
+    void update_travel_remaining();
     void settle_instant_events();
     void record(const std::string& kind, const std::string& detail = "");
     OrderPlanningContext order_context() const;
@@ -134,12 +148,12 @@ private:
     void traffic_tick();
     OrderRoute remaining_order_route() const;
     void export_traffic(const std::filesystem::path& directory) const;
-    Graph graph_;
+    std::shared_ptr<Graph> graph_;
     RoutePlan route_;
     SimulationOptions options_;
     ShortestPathCache path_cache_;
     RouteTiming timing_;
-    SimClock clock_;
+    std::shared_ptr<SimClock> clock_;
     Vehicle vehicle_;
     std::vector<DeliveryRecord> deliveries_;
     std::map<std::size_t, std::size_t> delivery_steps_;
@@ -147,6 +161,7 @@ private:
     std::size_t route_index_{0};
     Minutes phase_end_{0.0};
     bool finished_{false};
+    std::optional<Minutes> returned_at_;
     std::vector<SimulationEvent> events_;
     std::vector<SimulationSnapshot> history_;
     std::vector<Order> orders_;
