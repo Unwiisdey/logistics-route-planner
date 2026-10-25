@@ -137,7 +137,7 @@ void file_and_size_errors() {
 }
 void demo_network() {
     const auto graph = ConfigLoader::load_network("config/network.json", true);
-    check(graph.node_count() == 30 && graph.edge_count() == 98, "demo totals");
+    check(graph.node_count() == 30 && graph.edge_count() == 82, "demo totals");
     check(graph.node_count(NodeType::Warehouse) == 2 && graph.node_count(NodeType::DeliveryPoint) == 25 &&
           graph.node_count(NodeType::TransferStation) == 3, "demo types");
     // From every node, all nodes are reachable: delivery and return are possible.

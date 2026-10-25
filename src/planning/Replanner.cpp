@@ -66,7 +66,7 @@ ReplanResult Replanner::repair(const Graph& graph, const OrderPlanningContext& c
         const auto& order = *found->second;
         const bool pickup = stop.action.kind == OrderActionKind::Pickup;
         if (!pickup && stop.action.kind != OrderActionKind::Delivery) { throw std::invalid_argument("invalid action kind"); }
-        if (route.nodes.back() != (pickup ? order.warehouse_id() : order.delivery_node_id())) {
+        if (route.nodes.back() != (pickup ? order.pickup_node_id() : order.delivery_node_id())) {
             throw std::invalid_argument("order action endpoint mismatch");
         }
         const auto arrival = now;

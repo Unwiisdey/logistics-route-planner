@@ -23,7 +23,7 @@ python scripts/start_ui.py --no-build --no-browser --port 8766
 
 ## 配送操作
 
-1. 从 config/orders.json 的 3 笔初始订单开始，网络包含 30 节点、98 道路，不自动发布文件中的动态订单。
+1. 从 config/orders.json 的 3 笔初始订单开始，网络包含 30 节点、82 道路，不自动发布文件中的动态订单。
 2. 点击“开始仿真”或“单步 +1 分钟”；速度只控制时间推进，不改变业务规则。
 3. 填写仓库、配送点、货物量、优先级和时间窗口，提交动态订单。编号留空自动生成。展开表单及提交时暂停自动推进。
 4. 示例：W01 → D05，15 kg，08:00—12:00。C++ 检查新旧全部窗口、取货、载重及返仓，可行才接受，拒绝时显示原因。
@@ -59,3 +59,7 @@ ctest --test-dir build -C Release --output-on-failure
 找到 Python 时，CTest 包含 UI 桥接和 HTTP 集成检查。浏览器检查位于 ui/verify_live.cjs、ui/verify_demo.cjs，可按 ui/package.json 安装固定 Playwright 1.62.1（Apache-2.0）运行。Windows 使用 Edge，其他系统需相应 Chromium；交互检查会重置当前仿真。
 
 本次正式集成的编译、98 项 CTest 和浏览器验证记录见 [UI 集成验证](reports/ui-integration.md)。
+
+## 中转站取货
+
+取货地点下拉包含 W01/W02 和 T01/T02/T03。可提交 T02 → D18、5 kg、08:00—12:00 的紧急订单，观察任务路径中的站点和“中转站待取”数量；推进后实际到站装货，待取数量减少。订单列表同时显示取货点与配送点。正式页面仍是单车展示，双车核心可通过 CLI 使用，双车 Demo 保持独立预览。当前截图见 maps/ui-hub.png，121 项回归及浏览器记录见 reports/hub-pickup.md。

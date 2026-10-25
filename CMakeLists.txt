@@ -59,6 +59,7 @@ endif()
 # Works from the build directory and beside the executable, without source-tree paths.
 configure_file(config/network.json config/network.json COPYONLY)
 configure_file(config/orders.json config/orders.json COPYONLY)
+configure_file(config/hub-orders.json config/hub-orders.json COPYONLY)
 # Run even when only JSON changed and the executable does not need relinking.
 add_custom_target(copy_network_config ALL
     COMMAND ${CMAKE_COMMAND} -E make_directory "$<TARGET_FILE_DIR:logistics_app>/config"
@@ -68,7 +69,10 @@ add_custom_target(copy_network_config ALL
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
         "${CMAKE_CURRENT_SOURCE_DIR}/config/orders.json"
         "$<TARGET_FILE_DIR:logistics_app>/config/orders.json"
-    DEPENDS logistics_app "${CMAKE_CURRENT_SOURCE_DIR}/config/network.json" "${CMAKE_CURRENT_SOURCE_DIR}/config/orders.json"
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        "${CMAKE_CURRENT_SOURCE_DIR}/config/hub-orders.json"
+        "$<TARGET_FILE_DIR:logistics_app>/config/hub-orders.json"
+    DEPENDS logistics_app "${CMAKE_CURRENT_SOURCE_DIR}/config/network.json" "${CMAKE_CURRENT_SOURCE_DIR}/config/orders.json" "${CMAKE_CURRENT_SOURCE_DIR}/config/hub-orders.json"
 )
 
 include(CTest)

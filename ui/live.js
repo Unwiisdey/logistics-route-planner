@@ -7,7 +7,7 @@
   const esc = value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const clock = value=>{if(value===null||value===undefined)return '—';const s=Math.round(value*60);return `${String(Math.floor(s/3600)).padStart(2,'0')}:${String(Math.floor(s/60)%60).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`;};
   const hm=value=>clock(value).slice(0,5);
-  const taskLabel=task=>task.kind==='return'?`返仓 · ${task.node_id}`:`${task.kind==='pickup'?'取货':'送货'} · ${task.order_id}`;
+  const taskLabel=task=>task.kind==='return'?`返仓 · ${task.node_id}`:`${task.kind==='pickup'?'取货':'送货'} · ${task.order_id}${task.kind==='pickup'?`（${task.node_id}）`:''}`;
   const names={driving:'行驶中',waiting:'等待窗口',unloading:'卸货中',idle:'空闲'};
   const data={nodes:[],edges:[],orders:[],traversals:[]},nodes=new Map(),edges=new Map();
   const state={highlight:true,road:'',weights:false,running:false,timer:null,busy:false,current:null};
@@ -38,7 +38,7 @@
     state.current=payload;Object.assign(data,payload);nodes.clear();edges.clear();
     data.nodes.forEach(n=>nodes.set(n.id,n));data.edges.forEach(e=>edges.set(e.id,e));
     if(!root.querySelector('[name=warehouse]').options.length){
-      [...nodes.values()].sort((a,b)=>a.id.localeCompare(b.id)).forEach(n=>{if(n.type==='warehouse')root.querySelector('[name=warehouse]').append(option(n.id,n.id));if(n.type==='delivery_point')root.querySelector('[name=destination]').append(option(n.id,n.id));});
+      [...nodes.values()].sort((a,b)=>a.id.localeCompare(b.id)).forEach(n=>{if(n.type==='warehouse'||n.type==='transfer_station')root.querySelector('[name=warehouse]').append(option(n.id,`${n.id}（${n.type==='warehouse'?'仓库':'中转站'}）`));if(n.type==='delivery_point')root.querySelector('[name=destination]').append(option(n.id,n.id));});
       root.querySelector('[name=destination]').value='D05';
       [...edges.values()].sort((a,b)=>a.id.localeCompare(b.id)).forEach(e=>field('road').append(option(e.id,`${e.id} · ${e.from_id}→${e.to_id}`)));
     }
@@ -60,10 +60,11 @@
     action('route').textContent=`路线高亮：${state.highlight?'开':'关'}`;action('route').setAttribute('aria-pressed',state.highlight);
     set('path',f.future_nodes.length?f.future_nodes.join(' → '):'已完成全部已接订单。');
     set('current-task',payload.current_task?taskLabel(payload.current_task):'全部任务完成');
+    set('pickup-points',(payload.pickup_points||[]).sort((a,b)=>a.node_id.localeCompare(b.node_id)).map(p=>`${p.node_id} ${p.waiting_orders.length} 单`).join(' · '));
     set('task-path',payload.task_path.length?payload.task_path.map(taskLabel).join(' → '):'全部任务完成');
     const selected=edges.get(state.road);set('road-detail',selected?`${selected.from_id} → ${selected.to_id} · ${selected.distance.toFixed(1)} km · 当前 ${selected.time.toFixed(2)} 分钟 · ${selected.traffic_status==='congested'?'拥堵':'畅通'}`:'地图标签表示道路当前预计耗时，不是本车剩余耗时。');
     set('live-time',`模拟时间 ${clock(f.time)} · 已运行 ${(f.time-480).toFixed(1)} 分钟`);
-    view('orders').innerHTML=data.orders.map(o=>{let label='配送中',cls='',sub=o.priority==='urgent'?'紧急':'普通';if(!o.accepted){label='已拒绝';cls='rejected';sub=reason(o.reason);}else if(o.completed!==null){label=o.late_minutes>0?'超时完成':'已完成';cls='done';sub=`完成 ${hm(o.completed)}`;}else if(o.service!==null){label='卸货中';}else if(o.pickup===null){label='待取货';}return `<tr><td>${esc(o.id)}<small>${esc(o.delivery_node_id)} · ${esc(sub)}</small></td><td>${o.quantity} kg</td><td>${hm(o.time_window.earliest)}–${hm(o.time_window.latest)}</td><td><span class="lp-order-state ${cls}">${label}</span></td></tr>`;}).join('');
+    view('orders').innerHTML=data.orders.map(o=>{let label='配送中',cls='',sub=o.priority==='urgent'?'紧急':'普通';if(!o.accepted){label='已拒绝';cls='rejected';sub=reason(o.reason);}else if(o.completed!==null){label=o.late_minutes>0?'超时完成':'已完成';cls='done';sub=`完成 ${hm(o.completed)}`;}else if(o.service!==null){label='卸货中';}else if(o.pickup===null){label='待取货';}return `<tr><td>${esc(o.id)}<small>${esc(o.pickup_node_id||o.warehouse_id)} → ${esc(o.delivery_node_id)} · ${esc(sub)}</small></td><td>${o.quantity} kg</td><td>${hm(o.time_window.earliest)}–${hm(o.time_window.latest)}</td><td><span class="lp-order-state ${cls}">${label}</span></td></tr>`;}).join('');
     const kinds={start:'开始配送',tick:'时间推进',traffic_enabled:'启用路况模拟',arrive:'到达节点',pickup:'取货完成',wait:'等待时间窗口',unload_on_time:'开始卸货',unload_late:'超时卸货',delivered:'配送完成',returned:'返回仓库',order_accepted:'接受动态订单',order_rejected:'拒绝动态订单',route_activated:'新路线生效',replan:'路况评估与区间修复',window_risk:'预计超时风险'};
     set('event-count',`最近 ${payload.events.length} 条`);
     view('events').innerHTML=payload.events.slice(-6).reverse().map(e=>`<li><time>${clock(e.time)}</time>${esc(kinds[e.kind]||e.kind)}<small>${esc(e.kind==='order_rejected'?reason(e.detail):e.kind==='replan'?'评估受影响区间；当前道路保持入边时耗时。':e.detail)}</small></li>`).join('');
@@ -84,7 +85,7 @@
   root.querySelector('.lp-form-box').addEventListener('toggle',event=>{if(event.target.open)stop();});
   view('order-form').addEventListener('submit',async event=>{
     event.preventDefault();stop();const input=new FormData(event.currentTarget),minutes=value=>{const [h,m]=String(value).split(':').map(Number);return h*60+m;};
-    const order={warehouse:input.get('warehouse'),destination:input.get('destination'),quantity:Number(input.get('quantity')),priority:input.get('priority'),earliest:minutes(input.get('earliest')),latest:minutes(input.get('latest'))};
+    const order={pickup_node_id:input.get('warehouse'),destination:input.get('destination'),quantity:Number(input.get('quantity')),priority:input.get('priority'),earliest:minutes(input.get('earliest')),latest:minutes(input.get('latest'))};
     const id=String(input.get('id')||'').trim();if(id)order.id=id;
     const result=view('form-result');let error='';if(!Number.isFinite(order.quantity)||order.quantity<=0)error='货物量必须大于 0。';else if(!Number.isFinite(order.earliest)||!Number.isFinite(order.latest)||order.latest<order.earliest)error='窗口结束时间必须不早于开始时间。';
     if(error){result.className='lp-error';result.setAttribute('role','alert');result.textContent=error;return;}

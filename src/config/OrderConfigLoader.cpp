@@ -20,7 +20,11 @@ double number(const Json& item, const char* name) {
     return item.at(name).get<double>();
 }
 Order read_order(const Json& item, bool dynamic) {
-    keys(item, {"id", "warehouse_id", "delivery_node_id", "quantity", "time_window", "priority", "release_time"});
+    keys(item, {"id", "warehouse_id", "pickup_node_id", "delivery_node_id", "quantity", "time_window", "priority", "release_time"});
+    if (item.contains("pickup_node_id") == item.contains("warehouse_id")) {
+        throw ConfigError("specify exactly one of pickup_node_id and warehouse_id");
+    }
+    const auto pickup = item.at(item.contains("pickup_node_id") ? "pickup_node_id" : "warehouse_id").get<std::string>();
     std::optional<TimeWindow> window;
     if (!item.at("time_window").is_null()) {
         keys(item.at("time_window"), {"earliest", "latest"});
@@ -29,7 +33,7 @@ Order read_order(const Json& item, bool dynamic) {
     const auto priority = item.value("priority", dynamic ? "urgent" : "normal");
     if (priority != "urgent" && priority != "normal") { throw ConfigError("priority must be urgent or normal"); }
     const auto release = dynamic || item.contains("release_time") ? number(item, "release_time") : 0;
-    return Order(item.at("id").get<std::string>(), item.at("warehouse_id").get<std::string>(),
+    return Order(item.at("id").get<std::string>(), pickup,
                  item.at("delivery_node_id").get<std::string>(), number(item, "quantity"), window,
                  priority == "urgent" ? OrderPriority::Urgent : OrderPriority::Normal, release);
 }

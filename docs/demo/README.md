@@ -21,7 +21,7 @@ python scripts/demo.py --app build/Release/logistics_app.exe --output exports/fi
 
 | 时间 | 操作 | 说明 |
 | --- | --- | --- |
-| 0:00–0:45 | 展示 README 与需求表 | 单车辆、30 节点、98 有向道路；说明仓库/配送点/中转站 |
+| 0:00–0:45 | 展示 README 与需求表 | 单车/双车、30 节点、82 有向道路；说明仓库/配送点/中转站 |
 | 0:45–1:30 | `--summary --check-size`，打开 network.json | 图、边权、配置校验和邻接表，矩阵按需生成 |
 | 1:30–2:30 | 分别 `--plan distance` / `--plan cost` | 两点 Dijkstra 与访问顺序是两个层次；贪心整条路线不保证最优 |
 | 2:30–3:45 | 展示 03-orders.txt、insertions.csv | 紧急单真实回仓取货；超载和时限过紧的拒单；载荷不凭空增加 |

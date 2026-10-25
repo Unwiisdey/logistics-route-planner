@@ -58,3 +58,5 @@ python scripts/benchmark.py --binary build/tests/Release/performance_tests.exe -
 ## 剩余限制
 
 未测试真实地图规模、并发写入、多车辆、真实 GPS、在途封路/删除或长期服务的内存上限。事件/快照仍全量保存在内存，道路 ID 查找为线性扫描。启发式路线不保证全局最优，缓存优化不改变这一性质。已知范围已写入设计与用户手册，不把后续能力列为已完成。
+
+2026-10-25 最新 main：新路网与中转站取货验证见 [专项报告](reports/hub-pickup.md)，Release 121 项 CTest 与 23 项 Python 测试通过；本文件其余部分仍为 v1.0.0 历史记录。

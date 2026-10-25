@@ -35,7 +35,7 @@ public:
             planned_actions_.push_back(stop.action);
         }
         for (const auto& order : initial_) {
-            requests_[order.id()] = {{"id",order.id()},{"warehouse_id",order.warehouse_id()},
+            requests_[order.id()] = {{"id",order.id()},{"warehouse_id",order.pickup_node_id()},{"pickup_node_id",order.pickup_node_id()},
                 {"delivery_node_id",order.delivery_node_id()},{"quantity",order.quantity()},
                 {"priority","normal"},{"release_time",480},{"accepted",true},
                 {"time_window",{{"earliest",order.time_window()->earliest},{"latest",order.time_window()->latest}}}};
@@ -68,7 +68,7 @@ public:
             const bool pickup = action.kind == OrderActionKind::Pickup;
             if (found->delivered_at || (pickup && found->picked_up_at)) { continue; }
             tasks.push_back({{"kind",pickup ? "pickup" : "delivery"},{"order_id",action.order_id},
-                {"node_id",pickup ? found->warehouse_id : found->node_id}});
+                {"node_id",pickup ? found->pickup_node_id : found->node_id}});
         }
         if (!f.finished) { tasks.push_back({{"kind","return"},{"order_id",nullptr},{"node_id","W01"}}); }
         const json current_task = tasks.empty() ? json(nullptr) : tasks.front();
@@ -99,10 +99,16 @@ public:
         for (auto i = sim_->replanning_records().rbegin(); i != sim_->replanning_records().rend(); ++i) {
             if (i->searched_legs) { replan = {{"time",i->time},{"before",i->before},{"after",i->after},{"searched",i->searched_legs}}; break; }
         }
+        json pickup_points = json::array();
+        for (const auto& entry : sim_->network().nodes()) {
+            if (entry.second.type() == NodeType::TransferStation) {
+                pickup_points.push_back({{"node_id", entry.first}, {"waiting_orders", sim_->waiting_pickups(entry.first)}});
+            }
+        }
         const auto stats = sim_->path_cache_stats();
         return {{"ok",true},{"app","logistics-route-planner"},{"ui_version",1},{"nodes",nodes},{"edges",edges},{"orders",orders},{"events",events},
             {"traversals",traversals},{"capacity",100},{"segment",segment},{"last_trip",last_trip},{"replan",replan},
-            {"current_task",current_task},{"task_path",tasks},
+            {"current_task",current_task},{"task_path",tasks},{"pickup_points",pickup_points},
             {"penalty_rule",{{"rate_per_minute",SimulationOptions{}.late_penalty_per_minute},{"rounding","ceil"},{"based_on","service_start"}}},
             {"cache",{{"hits",stats.hits},{"misses",stats.misses}}},
             {"frame",{{"time",f.time},{"status",to_string(f.status)},{"node_id",f.node_id.value_or("")},
@@ -135,9 +141,11 @@ public:
             const double quantity = o.at("quantity").get<double>();
             if (!std::isfinite(quantity) || quantity <= 0) { throw std::invalid_argument("quantity must be positive"); }
             const TimeWindow window{o.at("earliest").get<double>(),o.at("latest").get<double>()};
-            const Order order(id,o.at("warehouse").get<std::string>(),o.at("destination").get<std::string>(),
+            if (o.contains("pickup_node_id") && o.contains("warehouse")) { throw std::invalid_argument("ambiguous pickup source"); }
+            const auto pickup_node = o.at(o.contains("pickup_node_id") ? "pickup_node_id" : "warehouse").get<std::string>();
+            const Order order(id,pickup_node,o.at("destination").get<std::string>(),
                 quantity,window,priority=="urgent"?OrderPriority::Urgent:OrderPriority::Normal,sim_->clock().now());
-            auto record = json{{"id",id},{"warehouse_id",order.warehouse_id()},
+            auto record = json{{"id",id},{"warehouse_id",order.pickup_node_id()},{"pickup_node_id",order.pickup_node_id()},
                 {"delivery_node_id",order.delivery_node_id()},{"quantity",quantity},{"priority",priority},
                 {"release_time",sim_->clock().now()},{"completed",nullptr},{"service",nullptr},{"pickup",nullptr},
                 {"time_window",{{"earliest",window.earliest},{"latest",window.latest}}}};

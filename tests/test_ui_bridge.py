@@ -60,6 +60,25 @@ class BridgeTests(unittest.TestCase):
         self.assertEqual(current["task_path"], [])
         self.assertIsNone(current["current_task"])
 
+    def test_station_pickup_source_and_waiting_list(self):
+        accepted = self.call(cmd="insert",order=dict(id="HUB-UI",pickup_node_id="T02",destination="D18",quantity=5,
+            earliest=480,latest=900,priority="urgent"))
+        self.assertTrue(accepted["insertion"]["accepted"])
+        self.assertIn("HUB-UI", next(p for p in accepted["pickup_points"] if p["node_id"]=="T02")["waiting_orders"])
+        self.assertIn({"kind":"pickup","order_id":"HUB-UI","node_id":"T02"},accepted["task_path"])
+        self.assertEqual(next(o for o in accepted["orders"] if o["id"]=="HUB-UI")["pickup_node_id"],"T02")
+        for _ in range(150):
+            current = self.call(cmd="advance",minutes=5)
+            record = next(o for o in current["orders"] if o["id"]=="HUB-UI")
+            if current["frame"]["finished"]:
+                break
+        self.assertIsNotNone(record["pickup"])
+        self.assertIsNotNone(record["completed"])
+        self.assertNotIn("HUB-UI",next(p for p in current["pickup_points"] if p["node_id"]=="T02")["waiting_orders"])
+        self.assertEqual(current["frame"]["node_id"],"W01")
+        self.assertFalse(self.call(cmd="insert",order=dict(id="BAD-SOURCE",pickup_node_id="D12",destination="D18",
+            quantity=1,earliest=480,latest=900))["insertion"]["accepted"])
+
     def test_rejections_preserve_vehicle_route_and_accepted_orders(self):
         baseline = self.call(cmd="state")
         for name, kwargs in [("overload", {"quantity":2000}), ("window", {"latest":480.01,"destination":"D25"})]:

@@ -65,7 +65,7 @@ FleetSimulation::FleetSimulation(Graph graph, std::vector<FleetVehicleSpec> vehi
         std::tuple<double, double, std::string> best_key;
         std::string failures;
         for (std::size_t i = 0; i < specs_.size(); ++i) {
-            if (order.warehouse_id() != specs_[i].warehouse) { failures += specs_[i].id + ": initial cargo at a different warehouse; "; continue; }
+            if (order.pickup_node_id() != specs_[i].warehouse) { failures += specs_[i].id + ": initial cargo at a different warehouse; "; continue; }
             auto candidate_orders = allocated[i]; candidate_orders.push_back(order);
             OrderPlanningContext ctx;
             ctx.start_node = ctx.warehouse = specs_[i].warehouse; ctx.start_time = start;
@@ -174,6 +174,14 @@ void FleetSimulation::advance(Minutes minutes) {
         }
     }
     for (const auto& vehicle : vehicles_) { vehicle->record("fleet_tick"); vehicle->history_.push_back(vehicle->snapshot()); }
+}
+std::vector<OrderId> FleetSimulation::waiting_pickups(const NodeId& pickup_node) const {
+    std::vector<OrderId> result;
+    for (const auto& vehicle : vehicles_) {
+        const auto waiting = vehicle->waiting_pickups(pickup_node);
+        result.insert(result.end(), waiting.begin(), waiting.end());
+    }
+    return result;
 }
 void FleetSimulation::write_log(std::ostream& out) const {
     for (const auto& assignment : assignments_) {

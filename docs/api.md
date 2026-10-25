@@ -108,3 +108,13 @@ sim.export_csv("exports/api");
 - finished()：所有车辆均完成；write_log 汇总与逐车日志；export_csv(path) 写 assignments.csv 与每车 ID 子目录的原仿真 CSV。车辆完成后，在共同时间线上其 snapshot.time 仍是当前时间，实际返仓时间看 Simulation::completed_at()，返仓预测和完成日志保留该时刻。根目录 traffic_options.csv 保存共享路况源参数；各车的 random_enabled=0 表示自身不采样。
 
 Simulation 不可复制、可移动，避免意外复制活动仿真时共享可变状态。单车公开构造函数仍创建独立网络和时钟，只有 FleetSimulation 内部构造才注入共享对象。
+
+## 指定中转站取货（2026-10-25）
+
+Order::pickup_node_id() 为规范取货地点访问器，允许仓库或中转站；warehouse_id() 作为旧接口别名保留，不再表示车辆返仓点。DeliveryRecord 同时输出 pickup_node_id 与兼容 warehouse_id，两者内容一致；deliveries.csv 在末列追加 pickup_node_id，原 warehouse_id 列仍是取货点别名。
+
+Simulation::waiting_pickups(node_id)、FleetSimulation::waiting_pickups(node_id) 返回已接且未取的订单 ID；普通配送点或未知节点抛 invalid_argument。清单从订单记录计算，预览/拒绝不增加货物，实际执行 Pickup 后移除。
+
+OrderConfigLoader 允许 pickup_node_id 或旧 warehouse_id，恰好提供一个；初始订单仍从出发仓库预装，动态单可在中转站备货。home warehouse / OrderPlanningContext::warehouse 始终是返仓仓库。
+
+UI API 接受 pickup_node_id，兼容旧 warehouse 请求参数，二者同时出现拒绝；状态 pickup_points 包含中转站的 node_id 和 waiting_orders。订单状态返回规范 pickup_node_id 及旧别名。取货仍为瞬时动作，不引入装货服务时长。

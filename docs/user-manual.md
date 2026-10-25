@@ -35,7 +35,7 @@ Windows 本地实测环境与远端 CI 记录见 [测试报告](test-report.md)�
 以下用 Windows 路径；其他平台替换可执行文件路径即可。
 
 ```powershell
-# 30 节点、98 道路的规模检查
+# 30 节点、82 道路的规模检查
 .\build\Release\logistics_app.exe --summary --check-size
 # 邻接表（无选项）及邻接矩阵
 .\build\Release\logistics_app.exe
@@ -139,3 +139,9 @@ Path cache 日志的 misses 表示实际最短路请求，hits 表示避免了�
 订单先按约束判断，再比较方案。距离/成本路径预计超时，会尝试耗时最短；仍不满足全部剩余窗口、取送和容量则拒绝。旧静态 --plan（未进入硬窗口订单模式）不改变算法。
 
 导出目录含 assignments.csv、V01/、V02/；可分别将车辆子目录交给原 plot_traffic.py 回放，尚无两车叠加画图。现有 Web UI 仍为单车，不会因启动器自动切换双车；[双车 UI 设计方案](fleet-ui-design.md) 仅为后续设计。
+
+## 从中转站取货
+
+运行 config/hub-orders.json：双车用 --vehicles 2 --capacity 40，单车用 --vehicles 1 --capacity 100；其余沿用 --plan distance --simulate --scenario config/hub-orders.json --traffic。HUB01 在 08:02 发布，货物位于 T02，送往 D18；超载和极窄窗口示例会明确拒绝。
+
+正式页面“取货地点”提供仓库与中转站；当前任务显示“取货 · 订单ID（站点ID）”，地图下方显示各站待取数量。货物只在实际取货时装上车；车辆仍返回原仓库。详细规则见 transfer-stations.md。保存的旧演示和 replay.html 保持历史 98 边网格，当前主页面使用新路网。

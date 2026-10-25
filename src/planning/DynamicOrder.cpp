@@ -23,11 +23,11 @@ void validate(const Graph& graph, const OrderPlanningContext& ctx) {
     }
     std::set<OrderId> ids;
     for (const auto& order : ctx.orders) {
-        const auto* warehouse = graph.find_node(order.warehouse_id());
+        const auto* pickup = graph.find_node(order.pickup_node_id());
         const auto* destination = graph.find_node(order.delivery_node_id());
-        if (!ids.insert(order.id()).second || !warehouse || warehouse->type() != NodeType::Warehouse ||
+        if (!ids.insert(order.id()).second || !pickup || (pickup->type() != NodeType::Warehouse && pickup->type() != NodeType::TransferStation) ||
             !destination || destination->type() != NodeType::DeliveryPoint) {
-            throw std::invalid_argument("duplicate order ID or invalid warehouse/delivery endpoint");
+            throw std::invalid_argument("duplicate order ID or invalid pickup/delivery endpoint");
         }
     }
     for (const auto& id : ctx.loaded) {
@@ -82,7 +82,7 @@ InsertionResult evaluate_with_metric(const Graph& graph, const OrderPlanningCont
         if (delivered.count(order.id())) { return reject("order already delivered in candidate"); }
         const bool pickup = action.kind == OrderActionKind::Pickup;
         if (!pickup && action.kind != OrderActionKind::Delivery) { return reject("invalid order action"); }
-        if (!travel_to(pickup ? order.warehouse_id() : order.delivery_node_id())) { return reject("unreachable order stop"); }
+        if (!travel_to(pickup ? order.pickup_node_id() : order.delivery_node_id())) { return reject("unreachable order stop"); }
         const double arrival = now;
         if (pickup) {
             if (loaded.count(order.id())) { return reject("duplicate pickup"); }
@@ -178,7 +178,7 @@ InsertionResult DynamicOrder::initial(const Graph& graph, OrderPlanningContext c
     ctx.orders.clear(); ctx.loaded.clear(); ctx.incumbent.clear();
     InsertionResult result = evaluate(graph, ctx, {}, cache);
     for (const auto& order : all) {
-        if (order.warehouse_id() != ctx.start_node || order.release_time() > ctx.start_time) {
+        if (order.pickup_node_id() != ctx.start_node || order.release_time() > ctx.start_time) {
             return reject("initial orders must be available at the starting warehouse");
         }
         ctx.orders.push_back(order); ctx.loaded.insert(order.id());

@@ -35,6 +35,7 @@ public:
     const std::vector<FleetVehicleSpec>& vehicle_specs() const noexcept { return specs_; }
     const std::map<OrderId, std::string>& ownership() const noexcept { return ownership_; }
     const std::vector<FleetAssignment>& assignments() const noexcept { return assignments_; }
+    std::vector<OrderId> waiting_pickups(const NodeId& pickup_node) const;
     void write_log(std::ostream& output) const;
     void export_csv(const std::filesystem::path& directory) const;
 private:

@@ -16,13 +16,14 @@ def main():
     markup = markup.replace('开始回放', '开始仿真').replace('载入示例 / 重置', '重置仿真')
     markup = markup.replace('C++ 实际仿真记录 · 393 帧', '本机 C++ 实时仿真 · 手动插单')
     markup = markup.replace('剩余路段耗时', '本车本段剩余耗时')
-    tasks = '<div class="lp-task-panel" aria-live="polite"><p><span class="lp-muted">当前任务：</span><strong data-view="current-task">正在读取…</strong></p><p><span class="lp-muted">任务路径：</span><span data-view="task-path">正在读取…</span></p></div>'
+    tasks = '<div class="lp-task-panel" aria-live="polite"><p><span class="lp-muted">当前任务：</span><strong data-view="current-task">正在读取…</strong></p><p><span class="lp-muted">任务路径：</span><span data-view="task-path">正在读取…</span></p><p><span class="lp-muted">中转站待取：</span><span data-view="pickup-points">正在读取…</span></p></div>'
     markup = markup.replace('<p data-view="path"></p></div>', '<p data-view="path"></p>'+tasks+'</div>')
     extra = '<div><dt>本车本段总耗时</dt><dd data-view="segment-total">—</dd></div><div><dt>道路当前预计耗时</dt><dd data-view="road-now">—</dd></div><div><dt>本段预计到达</dt><dd data-view="segment-arrival">—</dd></div><div><dt>上段实际耗时</dt><dd data-view="last-trip">—</dd></div>'
     markup = markup.replace('<div><dt>下一订单</dt>', extra+'<div><dt>下一订单</dt>')
     markup = markup.replace('＋ 新增订单 · 表单预览', '＋ 手动添加动态订单')
     markup = markup.replace('<details class="lp-form-box">', '<details class="lp-form-box" open>')
     markup = markup.replace('<div class="lp-form-grid">', '<div class="lp-form-grid"><label>订单编号（可留空）<input name="id" maxlength="64" placeholder="自动生成编号"></label>')
+    markup = markup.replace('取货仓库', '取货地点（仓库 / 中转站）')
     markup = markup.replace('校验输入', '提交动态订单')
     markup = markup.replace('表单未连接 C++，不会改变当前回放。', '提交即调用 C++ 检查全部约束；不会自动加载预设动态订单。')
     start = markup.index('  <section class="lp-timeline"')

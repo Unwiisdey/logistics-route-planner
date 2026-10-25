@@ -29,7 +29,8 @@ struct DeliveryRecord {
     std::optional<Minutes> delivered_at;
     Minutes late_minutes{0.0};
     double penalty_points{0.0};
-    NodeId warehouse_id;
+    NodeId pickup_node_id;
+    NodeId warehouse_id;  // Legacy read-only result alias of pickup_node_id.
     OrderPriority priority{OrderPriority::Normal};
     bool loaded{true};
     std::optional<Minutes> picked_up_at;
@@ -122,6 +123,7 @@ public:
     const std::vector<RouteRevision>& route_revisions() const noexcept { return revisions_; }
     SimulationSnapshot snapshot() const;
     std::vector<NodeId> remaining_deliveries() const;
+    std::vector<OrderId> waiting_pickups(const NodeId& pickup_node) const;
     void write_log(std::ostream& output) const;
     // Also exports the static route/network CSVs understood by plot_network.py.
     void export_csv(const std::filesystem::path& directory) const;

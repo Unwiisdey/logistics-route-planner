@@ -69,7 +69,8 @@ Simulation::Simulation(Graph graph, RoutePlan route, SimulationOptions options)
         delivery.node_id = node->id();
         delivery.quantity = node->demand();
         delivery.window = node->time_window();
-        delivery.warehouse_id = route_.warehouse_id;
+        delivery.pickup_node_id = route_.warehouse_id;
+        delivery.warehouse_id = delivery.pickup_node_id;
         delivery.picked_up_at = clock_->now();
         orders_.emplace_back(delivery.order_id, route_.warehouse_id, node->id(), node->demand(), node->time_window());
         delivery_steps_.emplace(stop.route_node_index, deliveries_.size());
@@ -92,7 +93,7 @@ void Simulation::enter_node() {
             const auto index = order_index(action.order_id);
             auto& task = deliveries_[index];
             if (action.kind == OrderActionKind::Pickup) {
-                if (task.loaded || task.delivered_at || task.warehouse_id != *vehicle_.position().node_id) {
+                if (task.loaded || task.delivered_at || task.pickup_node_id != *vehicle_.position().node_id) {
                     throw std::logic_error("invalid runtime pickup");
                 }
                 vehicle_.load(task.quantity);
@@ -262,6 +263,17 @@ std::vector<NodeId> Simulation::remaining_deliveries() const {
     for (const auto& task : deliveries_) { if (!task.delivered_at) { result.push_back(task.node_id); } }
     return result;
 }
+std::vector<OrderId> Simulation::waiting_pickups(const NodeId& pickup_node) const {
+    const auto* node = graph_->find_node(pickup_node);
+    if (!node || (node->type() != NodeType::Warehouse && node->type() != NodeType::TransferStation)) {
+        throw std::invalid_argument("pickup point must be a warehouse or transfer station");
+    }
+    std::vector<OrderId> result;
+    for (const auto& task : deliveries_) {
+        if (task.pickup_node_id == pickup_node && !task.picked_up_at && !task.delivered_at) { result.push_back(task.order_id); }
+    }
+    return result;
+}
 void Simulation::write_log(std::ostream& out) const {
     out << std::fixed << std::setprecision(2);
     out << "Vehicle " << vehicle_.id() << " capacity=" << vehicle_.capacity() << " kg; step=" << clock_->step()
@@ -350,7 +362,7 @@ void Simulation::export_csv(const std::filesystem::path& directory) const {
     state_header(events); events << ",event,detail\n";
     for (const auto& event : events_) { state_row(events, event.state); events << ',' << csv(event.kind) << ',' << csv(event.detail) << '\n'; }
     auto deliveries = open_csv(directory / "deliveries.csv");
-    deliveries << "order_id,node_id,quantity,earliest,latest,arrival,service_start,delivered_at,late_minutes,penalty_points,status,warehouse_id,priority,picked_up_at\n";
+    deliveries << "order_id,node_id,quantity,earliest,latest,arrival,service_start,delivered_at,late_minutes,penalty_points,status,warehouse_id,priority,picked_up_at,pickup_node_id\n";
     for (const auto& task : deliveries_) {
         deliveries << csv(task.order_id) << ',' << csv(task.node_id) << ',' << task.quantity << ',';
         if (task.window) { deliveries << task.window->earliest; } deliveries << ',';
@@ -360,9 +372,9 @@ void Simulation::export_csv(const std::filesystem::path& directory) const {
         if (task.delivered_at) { deliveries << *task.delivered_at; }
         deliveries << ',' << task.late_minutes << ',' << task.penalty_points << ','
                    << (task.delivered_at ? (task.late_minutes > 0 ? "late" : "delivered") : "pending")
-                   << ',' << csv(task.warehouse_id) << ',' << (task.priority == OrderPriority::Urgent ? "urgent" : "normal") << ',';
+                   << ',' << csv(task.pickup_node_id) << ',' << (task.priority == OrderPriority::Urgent ? "urgent" : "normal") << ',';
         if (task.picked_up_at) { deliveries << *task.picked_up_at; }
-        deliveries << '\n';
+        deliveries << ',' << csv(task.pickup_node_id) << '\n';
     }
     states.flush(); events.flush(); deliveries.flush(); settings.flush();
     export_traffic(directory);

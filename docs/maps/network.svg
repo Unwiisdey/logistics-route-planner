@@ -1,0 +1,137 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1100" viewBox="0 0 1600 1100" role="img" aria-labelledby="title desc">
+<title id="title">简化城市配送路网方案</title><desc id="desc">30 个节点，按三个片区的支路环线、片区间连接主路和少量捷径组织；绿色为 D12 与 D18 的直接双向连接。根据当前 network.json 绘制，仓库、中转站与配送点均有标注。</desc>
+<defs><filter id="shadow" x="-30%" y="-30%" width="160%" height="170%"><feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#23455e" flood-opacity=".09"/></filter>
+
+<marker id="arrow-branch" viewBox="0 0 8 8" refX="6" refY="4" markerWidth="7" markerHeight="7" orient="auto-start-reverse" markerUnits="userSpaceOnUse"><path d="M1 1L7 4L1 7Z" fill="#bac9d5"/></marker>
+<marker id="arrow-main" viewBox="0 0 8 8" refX="6" refY="4" markerWidth="7" markerHeight="7" orient="auto-start-reverse" markerUnits="userSpaceOnUse"><path d="M1 1L7 4L1 7Z" fill="#5d7e9c"/></marker>
+<marker id="arrow-shortcut" viewBox="0 0 8 8" refX="6" refY="4" markerWidth="7" markerHeight="7" orient="auto-start-reverse" markerUnits="userSpaceOnUse"><path d="M1 1L7 4L1 7Z" fill="#208c77"/></marker>
+</defs><style>text{font-family:"Microsoft YaHei","Segoe UI",sans-serif}.node-label{paint-order:stroke;stroke:#fcfdff;stroke-width:6px;stroke-linejoin:round}</style>
+<rect width="1600" height="1100" fill="#f3f6fa"/><rect width="1600" height="120" fill="#1b354c"/>
+<text x="42" y="43" fill="#a8bed0" font-size="14" letter-spacing="2">LOGISTICS / SIMPLIFIED ROAD NETWORK</text>
+<text x="40" y="88" fill="white" font-size="31" font-weight="600">简化城市路网 · 主路、支路与少量捷径</text>
+<rect x="1315" y="39" width="242" height="39" rx="20" fill="#29465f" stroke="#6e879b"/><text x="1436" y="65" fill="#dae7f3" font-size="16" text-anchor="middle">当前路网 · 配置文件驱动</text>
+<rect x="32" y="146" width="1536" height="812" rx="20" fill="#fcfdff" stroke="#dfe7ef"/>
+<path d="M97 418Q75 277 225 267L455 294Q552 315 563 450L553 797Q549 914 391 928L180 913Q72 902 85 762Z" fill="#f0f5fa"/>
+<path d="M557 286Q580 215 726 217L909 247Q1000 260 1000 388L950 809Q914 928 752 926L590 909Q525 886 551 756Z" fill="#f5f7fa"/>
+<path d="M1000 269Q1090 222 1293 277Q1449 296 1451 491L1433 786Q1404 935 1202 922L1039 910Q959 880 969 739Z" fill="#eff6f5"/>
+<text x="72" y="194" fill="#4d6b86" font-size="21" font-weight="600">简明配送道路图</text>
+
+<text x="1519" y="192" text-anchor="end" fill="#8094a7" font-size="17">30 节点 · 41 组双向连接（82 条有向边）</text>
+<text x="285" y="258" fill="#a2b1c0" font-size="18">西部片区</text>
+<text x="726" y="245" fill="#a5b0be" font-size="18">中部片区</text>
+<text x="1266" y="235" fill="#9bb2ab" font-size="18">东部片区</text>
+<path d="M251.66987148674565 853.3339742973491L368.33012851325435 876.6660257026509" fill="none" stroke="#bac9d5" stroke-width="2.6" stroke-linecap="round" marker-start="url(#arrow-branch)" marker-end="url(#arrow-branch)"><title>D01 ↔ D02</title></path>
+<path d="M244.0778808535957 835.6266886484735L345.9221191464043 674.3733113515265" fill="none" stroke="#bac9d5" stroke-width="2.6" stroke-linecap="round" marker-start="url(#arrow-branch)" marker-end="url(#arrow-branch)"><title>D01 ↔ T01</title></path>
+<path d="M400.866875305452 873.8973556517492L499.133124694548 836.1026443482508" fill="none" stroke="#bac9d5" stroke-width="2.6" stroke-linecap="round" marker-start="url(#arrow-branch)" marker-end="url(#arrow-branch)"><title>D02 ↔ D03</title></path>
+<path d="M531.345907109894 834.6702591742554L638.654092890106 865.3297408257446" fill="none" stroke="#bac9d5" stroke-width="2.6" stroke-linecap="round" marker-start="url(#arrow-branch)" marker-end="url(#arrow-branch)"><title>D03 ↔ D04</title></path>
+<path d="M503.34880011691513 817.6206001242224L366.65119988308487 672.3793998757776" fill="none" stroke="#bac9d5" stroke-width="2.6" stroke-linecap="round" marker-start="url(#arrow-branch)" marker-end="url(#arrow-branch)"><title>D03 ↔ T01</title></path>
+<path d="M671.6353463447747 866.4978218221527L828.3646536552253 833.5021781778473" fill="none" stroke="#bac9d5" stroke-width="2.6" stroke-linecap="round" marker-start="url(#arrow-branch)" marker-end="url(#arrow-branch)"><title>D04 ↔ D08</title></path>
+<path d="M660.3758720222862 853.8723839331412L699.6241279777138 736.1276160668588" fill="none" stroke="#bac9d5" stroke-width="2.6" stroke-linecap="round" marker-start="url(#arrow-branch)" marker-end="url(#arrow-branch)"><title>D04 ↔ D13</title></path>
+<path d="M1063.9365466512486 857.0926377597899L966.0634533487514 742.9073622402101" fill="none" stroke="#bac9d5" stroke-width="2.6" stroke-linecap="round" marker-start="url(#arrow-branch)" marker-end="url(#arrow-branch)"><title>D05 ↔ D09</title></path>
+<path d="M1090.7841037450494 863.6863585019803L1209.2158962549506 816.3136414980197" fill="none" stroke="#bac9d5" stroke-width="2.6" stroke-linecap="round" marker-start="url(#arrow-branch)" marker-end="url(#arrow-branch)"><title>D05 ↔ D10</title></path>
+<path d="M213.62613023097708 583.0556061820505L201.37386976902292 431.94439381794945" fill="none" stroke="#bac9d5" stroke-width="2.6" stroke-linecap="round" marker-start="url(#arrow-branch)" marker-end="url(#arrow-branch)"><title>D06 ↔ D11</title></path>
+<path d="M230.62546551030698 606.6966280758459L339.374534489693 653.3033719241541" fill="none" stroke="#bac9d5" stroke-width="2.6" stroke-linecap="round" marker-start="url(#arrow-branch)" marker-end="url(#arrow-branch)"><title>D06 ↔ T01</title></path>
+<path d="M364.1448550037433 490.5700966641711L500.8551449962567 399.42990333582884" fill="none" stroke="#bac9d5" stroke-width="2.6" stroke-linecap="round" marker-start="url(#arrow-branch)" marker-end="url(#arrow-branch)"><title>D07 ↔ D21</title></path>
+<path d="M350.53099079042124 516.9917052934803L354.46900920957876 643.0082947065197" fill="none" stroke="#bac9d5" stroke-width="2.6" stroke-linecap="round" marker-start="url(#arrow-branch)" marker-end="url(#arrow-branch)"><title>D07 ↔ T01</title></path>
+<path d="M857.578981247731 818.5645625020627L942.421018752269 741.4354374979373" fill="none" stroke="#bac9d5" stroke-width="2.6" stroke-linecap="round" marker-start="url(#arrow-branch)" marker-end="url(#arrow-branch)"><title>D08 ↔ D09</title></path>
+<path d="M837.6652565458319 814.663718232194L742.3347434541681 615.336281767806" fill="none" stroke="#bac9d5" stroke-width="2.6" stroke-linecap="round" marker-start="url(#arrow-branch)" marker-end="url(#arrow-branch)"><title>D08 ↔ T02</title></path>
+<path d="M967.4574893576471 718.4323313107562L1082.542510642353 611.5676686892438" fill="none" stroke="#bac9d5" stroke-width="2.6" stroke-linecap="round" marker-start="url(#arrow-branch)" marker-end="url(#arrow-branch)"><title>D09 ↔ T03</title></path>
+<path d="M1221.8670949041468 793.2911728221166L1198.1329050958532 666.7088271778834" fill="none" stroke="#bac9d5" stroke-width="2.6" stroke-linecap="round" marker-start="url(#arrow-branch)" marker-end="url(#arrow-branch)"><title>D10 ↔ D14</title></path>
+<path d="M215.12263930844014 407.23432035512525L369.87736069155983 327.7656796448747" fill="none" stroke="#bac9d5" stroke-width="2.6" stroke-linecap="round" marker-start="url(#arrow-branch)" marker-end="url(#arrow-branch)"><title>D11 ↔ D16</title></path>
+<path d="M590.9690985070026 574.0824039813263L639.0309014929974 445.91759601867375" fill="none" stroke="#bac9d5" stroke-width="2.6" stroke-linecap="round" marker-start="url(#arrow-branch)" marker-end="url(#arrow-branch)"><title>D12 ↔ D17</title></path>
+<path d="M568.7365440327094 594.9497474683059L371.2634559672906 655.0502525316941" fill="none" stroke="#5d7e9c" stroke-width="5" stroke-linecap="round" marker-start="url(#arrow-main)" marker-end="url(#arrow-main)"><title>D12 ↔ T01</title></path>
+<path d="M601.9623476835624 591.1308231789042L718.0376523164376 598.8691768210958" fill="none" stroke="#5d7e9c" stroke-width="5" stroke-linecap="round" marker-start="url(#arrow-main)" marker-end="url(#arrow-main)"><title>D12 ↔ T02</title></path>
+<path d="M709.1231056256177 703.5075774975294L730.8768943743823 616.4924225024706" fill="none" stroke="#bac9d5" stroke-width="2.6" stroke-linecap="round" marker-start="url(#arrow-branch)" marker-end="url(#arrow-branch)"><title>D13 ↔ T02</title></path>
+<path d="M1179.7947377530015 642.3973688765008L1110.2052622469985 607.6026311234992" fill="none" stroke="#bac9d5" stroke-width="2.6" stroke-linecap="round" marker-start="url(#arrow-branch)" marker-end="url(#arrow-branch)"><title>D14 ↔ T03</title></path>
+<path d="M1324.1168652057038 576.9402382468446L1245.8831347942962 483.05976175315544" fill="none" stroke="#bac9d5" stroke-width="2.6" stroke-linecap="round" marker-start="url(#arrow-branch)" marker-end="url(#arrow-branch)"><title>D15 ↔ D20</title></path>
+<path d="M1318.01473775743 590.7077192601071L1111.98526224257 599.2922807398929" fill="none" stroke="#bac9d5" stroke-width="2.6" stroke-linecap="round" marker-start="url(#arrow-branch)" marker-end="url(#arrow-branch)"><title>D15 ↔ T03</title></path>
+<path d="M399.968008698677 328.0596969915953L500.031991301323 381.94030300840467" fill="none" stroke="#bac9d5" stroke-width="2.6" stroke-linecap="round" marker-start="url(#arrow-branch)" marker-end="url(#arrow-branch)"><title>D16 ↔ D21</title></path>
+<path d="M650.9690985070026 414.08240398132625L699.0309014929974 285.91759601867375" fill="none" stroke="#bac9d5" stroke-width="2.6" stroke-linecap="round" marker-start="url(#arrow-branch)" marker-end="url(#arrow-branch)"><title>D17 ↔ D22</title></path>
+<path d="M829.7601334161158 421.5656380479338L940.2398665838842 358.4343619520662" fill="none" stroke="#bac9d5" stroke-width="2.6" stroke-linecap="round" marker-start="url(#arrow-branch)" marker-end="url(#arrow-branch)"><title>D18 ↔ D24</title></path>
+<path d="M807.761450382392 445.3819179374169L742.238549617608 584.6180820625831" fill="none" stroke="#bac9d5" stroke-width="2.6" stroke-linecap="round" marker-start="url(#arrow-branch)" marker-end="url(#arrow-branch)"><title>D18 ↔ T02</title></path>
+<path d="M1102.5958369439657 373.1708586077601L1087.4041630560343 266.8291413922398" fill="none" stroke="#bac9d5" stroke-width="2.6" stroke-linecap="round" marker-start="url(#arrow-branch)" marker-end="url(#arrow-branch)"><title>D19 ↔ D25</title></path>
+<path d="M1104.1913924599373 406.9807583413154L1095.8086075400627 583.0192416586846" fill="none" stroke="#bac9d5" stroke-width="2.6" stroke-linecap="round" marker-start="url(#arrow-branch)" marker-end="url(#arrow-branch)"><title>D19 ↔ T03</title></path>
+<path d="M1222.542510642353 481.56766868924376L1107.457489357647 588.4323313107562" fill="none" stroke="#5d7e9c" stroke-width="5" stroke-linecap="round" marker-start="url(#arrow-main)" marker-end="url(#arrow-main)"><title>D20 ↔ T03</title></path>
+<path d="M1245.8831347942962 456.9402382468447L1324.1168652057038 363.0597617531554" fill="none" stroke="#5d7e9c" stroke-width="5" stroke-linecap="round" marker-start="url(#arrow-main)" marker-end="url(#arrow-main)"><title>D20 ↔ W02</title></path>
+<path d="M529.3733113515265 380.92211914640427L690.6266886484735 279.0778808535957" fill="none" stroke="#bac9d5" stroke-width="2.6" stroke-linecap="round" marker-start="url(#arrow-branch)" marker-end="url(#arrow-branch)"><title>D21 ↔ D22</title></path>
+<path d="M721.9706643439749 270.998274373175L858.0293356560251 279.001725626825" fill="none" stroke="#bac9d5" stroke-width="2.6" stroke-linecap="round" marker-start="url(#arrow-branch)" marker-end="url(#arrow-branch)"><title>D22 ↔ D23</title></path>
+<path d="M887.7938038100169 291.1945783337648L942.2061961899831 338.8054216662352" fill="none" stroke="#bac9d5" stroke-width="2.6" stroke-linecap="round" marker-start="url(#arrow-branch)" marker-end="url(#arrow-branch)"><title>D23 ↔ D24</title></path>
+<path d="M968.4746078147782 339.6349170655552L1071.5253921852218 260.3650829344448" fill="none" stroke="#bac9d5" stroke-width="2.6" stroke-linecap="round" marker-start="url(#arrow-branch)" marker-end="url(#arrow-branch)"><title>D24 ↔ D25</title></path>
+<path d="M1100.7841037450494 256.31364149801976L1319.2158962549506 343.68635850198024" fill="none" stroke="#bac9d5" stroke-width="2.6" stroke-linecap="round" marker-start="url(#arrow-branch)" marker-end="url(#arrow-branch)"><title>D25 ↔ W02</title></path>
+<path d="M340.104329552497 668.1926187461266L169.895670447503 761.8073812538734" fill="none" stroke="#5d7e9c" stroke-width="5" stroke-linecap="round" marker-start="url(#arrow-main)" marker-end="url(#arrow-main)"><title>T01 ↔ W01</title></path>
+<path d="M752.0 600.0L1078.0 600.0" fill="none" stroke="#5d7e9c" stroke-width="5" stroke-linecap="round" marker-start="url(#arrow-main)" marker-end="url(#arrow-main)"><title>T02 ↔ T03</title></path>
+<path d="M598.9553884303533 580.2919037006238L801.0446115696467 439.7080962993762" stroke="#d8eee7" stroke-width="15" fill="none" stroke-linecap="round"/>
+<path d="M598.9553884303533 580.2919037006238L801.0446115696467 439.7080962993762" fill="none" stroke="#208c77" stroke-width="4.5" stroke-linecap="round" marker-start="url(#arrow-shortcut)" marker-end="url(#arrow-shortcut)"><title>D12 ↔ D18</title></path>
+<rect x="142.0" y="757.0" width="26" height="26" rx="6" fill="#426c91" stroke="white" stroke-width="3"/>
+<text class="node-label" x="155.0" y="747.0" text-anchor="middle" fill="#416079" font-size="19" font-weight="600">W01</text>
+<circle cx="235.0" cy="850.0" r="9" fill="white" stroke="#8ca3b7" stroke-width="2.2"/>
+<text class="node-label" x="252.0" y="856.0" text-anchor="start" fill="#416079" font-size="18" font-weight="500">D01</text>
+<circle cx="385.0" cy="880.0" r="9" fill="white" stroke="#8ca3b7" stroke-width="2.2"/>
+<text class="node-label" x="402.0" y="886.0" text-anchor="start" fill="#416079" font-size="18" font-weight="500">D02</text>
+<circle cx="515.0" cy="830.0" r="9" fill="white" stroke="#8ca3b7" stroke-width="2.2"/>
+<text class="node-label" x="532.0" y="836.0" text-anchor="start" fill="#416079" font-size="18" font-weight="500">D03</text>
+<circle cx="655.0" cy="870.0" r="9" fill="white" stroke="#8ca3b7" stroke-width="2.2"/>
+<text class="node-label" x="672.0" y="876.0" text-anchor="start" fill="#416079" font-size="18" font-weight="500">D04</text>
+<circle cx="1075.0" cy="870.0" r="9" fill="white" stroke="#8ca3b7" stroke-width="2.2"/>
+<text class="node-label" x="1092.0" y="876.0" text-anchor="start" fill="#416079" font-size="18" font-weight="500">D05</text>
+<circle cx="215.0" cy="600.0" r="9" fill="white" stroke="#8ca3b7" stroke-width="2.2"/>
+<text class="node-label" x="232.0" y="606.0" text-anchor="start" fill="#416079" font-size="18" font-weight="500">D06</text>
+<circle cx="350.0" cy="500.0" r="9" fill="white" stroke="#8ca3b7" stroke-width="2.2"/>
+<text class="node-label" x="367.0" y="506.0" text-anchor="start" fill="#416079" font-size="18" font-weight="500">D07</text>
+<path d="M355.0 646.0L369.0 660.0L355.0 674.0L341.0 660.0Z" fill="#d0a15e" stroke="white" stroke-width="3"/>
+<text class="node-label" x="355.0" y="636.0" text-anchor="middle" fill="#416079" font-size="19" font-weight="600">T01</text>
+<circle cx="845.0" cy="830.0" r="9" fill="white" stroke="#8ca3b7" stroke-width="2.2"/>
+<text class="node-label" x="862.0" y="836.0" text-anchor="start" fill="#416079" font-size="18" font-weight="500">D08</text>
+<circle cx="955.0" cy="730.0" r="9" fill="white" stroke="#8ca3b7" stroke-width="2.2"/>
+<text class="node-label" x="972.0" y="736.0" text-anchor="start" fill="#416079" font-size="18" font-weight="500">D09</text>
+<circle cx="1225.0" cy="810.0" r="9" fill="white" stroke="#8ca3b7" stroke-width="2.2"/>
+<text class="node-label" x="1242.0" y="816.0" text-anchor="start" fill="#416079" font-size="18" font-weight="500">D10</text>
+<circle cx="200.0" cy="414.99999999999994" r="9" fill="white" stroke="#8ca3b7" stroke-width="2.2"/>
+<text class="node-label" x="217.0" y="420.99999999999994" text-anchor="start" fill="#416079" font-size="18" font-weight="500">D11</text>
+<circle cx="585.0" cy="590.0" r="18" fill="#dcefe8"/>
+<circle cx="585.0" cy="590.0" r="9" fill="#208c77" stroke="#208c77" stroke-width="2.2"/>
+<text class="node-label" x="602.0" y="596.0" text-anchor="start" fill="#208c77" font-size="18" font-weight="600">D12</text>
+<circle cx="705.0" cy="720.0" r="9" fill="white" stroke="#8ca3b7" stroke-width="2.2"/>
+<text class="node-label" x="722.0" y="726.0" text-anchor="start" fill="#416079" font-size="18" font-weight="500">D13</text>
+<path d="M735.0 586.0L749.0 600.0L735.0 614.0L721.0 600.0Z" fill="#d0a15e" stroke="white" stroke-width="3"/>
+<text class="node-label" x="735.0" y="576.0" text-anchor="middle" fill="#416079" font-size="19" font-weight="600">T02</text>
+<circle cx="1195.0" cy="650.0" r="9" fill="white" stroke="#8ca3b7" stroke-width="2.2"/>
+<text class="node-label" x="1212.0" y="656.0" text-anchor="start" fill="#416079" font-size="18" font-weight="500">D14</text>
+<circle cx="1335.0" cy="590.0" r="9" fill="white" stroke="#8ca3b7" stroke-width="2.2"/>
+<text class="node-label" x="1352.0" y="596.0" text-anchor="start" fill="#416079" font-size="18" font-weight="500">D15</text>
+<circle cx="385.0" cy="320.0" r="9" fill="white" stroke="#8ca3b7" stroke-width="2.2"/>
+<text class="node-label" x="402.0" y="326.0" text-anchor="start" fill="#416079" font-size="18" font-weight="500">D16</text>
+<circle cx="645.0" cy="430.0" r="9" fill="white" stroke="#8ca3b7" stroke-width="2.2"/>
+<text class="node-label" x="662.0" y="436.0" text-anchor="start" fill="#416079" font-size="18" font-weight="500">D17</text>
+<circle cx="815.0" cy="430.0" r="18" fill="#dcefe8"/>
+<circle cx="815.0" cy="430.0" r="9" fill="#208c77" stroke="#208c77" stroke-width="2.2"/>
+<text class="node-label" x="832.0" y="436.0" text-anchor="start" fill="#208c77" font-size="18" font-weight="600">D18</text>
+<circle cx="1105.0" cy="389.99999999999994" r="9" fill="white" stroke="#8ca3b7" stroke-width="2.2"/>
+<text class="node-label" x="1122.0" y="395.99999999999994" text-anchor="start" fill="#416079" font-size="18" font-weight="500">D19</text>
+<path d="M1095.0 586.0L1109.0 600.0L1095.0 614.0L1081.0 600.0Z" fill="#d0a15e" stroke="white" stroke-width="3"/>
+<text class="node-label" x="1095.0" y="576.0" text-anchor="middle" fill="#416079" font-size="19" font-weight="600">T03</text>
+<circle cx="1235.0" cy="470.00000000000006" r="9" fill="white" stroke="#8ca3b7" stroke-width="2.2"/>
+<text class="node-label" x="1252.0" y="476.00000000000006" text-anchor="start" fill="#416079" font-size="18" font-weight="500">D20</text>
+<circle cx="515.0" cy="389.99999999999994" r="9" fill="white" stroke="#8ca3b7" stroke-width="2.2"/>
+<text class="node-label" x="532.0" y="395.99999999999994" text-anchor="start" fill="#416079" font-size="18" font-weight="500">D21</text>
+<circle cx="705.0" cy="270.0" r="9" fill="white" stroke="#8ca3b7" stroke-width="2.2"/>
+<text class="node-label" x="722.0" y="276.0" text-anchor="start" fill="#416079" font-size="18" font-weight="500">D22</text>
+<circle cx="875.0" cy="280.0" r="9" fill="white" stroke="#8ca3b7" stroke-width="2.2"/>
+<text class="node-label" x="892.0" y="286.0" text-anchor="start" fill="#416079" font-size="18" font-weight="500">D23</text>
+<circle cx="955.0" cy="350.0" r="9" fill="white" stroke="#8ca3b7" stroke-width="2.2"/>
+<text class="node-label" x="972.0" y="356.0" text-anchor="start" fill="#416079" font-size="18" font-weight="500">D24</text>
+<circle cx="1085.0" cy="250.0" r="9" fill="white" stroke="#8ca3b7" stroke-width="2.2"/>
+<text class="node-label" x="1102.0" y="256.0" text-anchor="start" fill="#416079" font-size="18" font-weight="500">D25</text>
+<rect x="1322.0" y="337.0" width="26" height="26" rx="6" fill="#426c91" stroke="white" stroke-width="3"/>
+<text class="node-label" x="1335.0" y="327.0" text-anchor="middle" fill="#416079" font-size="19" font-weight="600">W02</text>
+<rect x="648.0" y="467.0" width="176" height="34" rx="8" fill="#208c77" filter="url(#shadow)"/><text x="736.0" y="490.0" fill="white" text-anchor="middle" font-size="16" font-weight="600">捷径 D12 ↔ D18</text>
+
+<text x="889" y="579" fill="#5c7f9c" font-size="16" style="paint-order:stroke;stroke:#fcfdff;stroke-width:6px">片区连接主路</text>
+<line x1="62" y1="1006" x2="105" y2="1006" stroke="#5d7e9c" stroke-width="5"/><text x="119" y="1012" fill="#70899d" font-size="17">连接主路</text>
+<line x1="315" y1="1006" x2="358" y2="1006" stroke="#bac9d5" stroke-width="3"/><text x="372" y="1012" fill="#70899d" font-size="17">片区支路 / 联络路</text>
+<line x1="655" y1="1006" x2="698" y2="1006" stroke="#208c77" stroke-width="5"/><text x="712" y="1012" fill="#70899d" font-size="17">斜向捷径</text>
+<rect x="963" y="996" width="20" height="20" rx="4" fill="#426c91"/><text x="997" y="1012" fill="#70899d" font-size="17">仓库</text>
+<circle cx="1126" cy="1006" r="8" fill="white" stroke="#8ca3b7" stroke-width="2"/><text x="1147" y="1012" fill="#70899d" font-size="17">配送点</text>
+<path d="M1300 995L1311 1006L1300 1017L1289 1006Z" fill="#d0a15e"/><text x="1323" y="1012" fill="#70899d" font-size="17">中转站</text>
+<text x="43" y="1068" fill="#8e9faf" font-size="15">来源：config/network.json。每条连线表示双向通行，两个方向的耗时和成本可以不同；坐标单位为 km。</text>
+</svg>

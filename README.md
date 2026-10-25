@@ -8,7 +8,11 @@
 
 ## 运行效果
 
-![路况、车辆位置、当前及未来路线](docs/demo/traffic.png)
+![当前简化配送路网](docs/maps/network.png)
+
+![中转站取货实际界面](docs/maps/ui-hub.png)
+
+历史 v1.0.0 网格回放（保留当时的数据和规则）：
 
 ![抽样配送回放](docs/demo/traffic.gif)
 
@@ -18,15 +22,15 @@
 
 | 模块 | 实现 |
 | --- | --- |
-| 图与配置 | 邻接表、节点/边增删、邻接矩阵、JSON 校验；30 节点、98 有向道路，2 仓库、25 配送点、3 中转站 |
+| 图与配置 | 邻接表、节点/边增删、邻接矩阵、JSON 校验；30 节点、82 有向道路，2 仓库、25 配送点、3 中转站 |
 | 基础规划 | 最小优先队列 Dijkstra，距离/成本策略，最近邻单车辆闭合行程 |
-| 订单 | 独立订单 ID、硬窗口接单、距离/成本路线超时则尝试耗时最短、真实取货与载重检查 |
+| 订单 | 独立订单 ID、硬窗口接单、距离/成本路线超时则尝试耗时最短、仓库/中转站真实取货与载重检查 |
 | 双车 | 共享路网与时钟、初始分单、订单归属固定、紧急订单分别试算后分配；CLI / C++ 可用 |
 | 仿真 | 连续模拟时钟、车辆在边上的位置、等待/卸货、迟到分钟向上取整计罚 |
 | 路况 | 默认每 30 秒选取约 10% 道路，增时至少 20% 触发受影响取送区间修复 |
 | 优化 | 有界最短路缓存、图版本自动失效、目标提前停止；保留未受影响区间 |
 | 展示 | 正式本地 Web 界面、手动插单、当前任务与任务路径；保留 CSV、PNG、GIF 和历史回放 |
-| 验证 | 核心历史 Debug / Release 各 96 项 CTest；双车与省时兜底加入后 Release 112 项通过，另有 23 项 Python 回放测试 |
+| 验证 | 核心历史 Debug / Release 各 96 项 CTest；新版路网与中转站取货加入后 Release 121 项通过，另有 23 项 Python 回放测试 |
 
 时间单位为分钟，货物 kg、距离 km、费用元。08:00 对应 480。早到等待，在开始卸货时检查闭区间窗口；处罚为迟到分钟数向上取整 × 每分钟分值，默认 1 分/分钟；例如迟到 2 分 30 秒计 3 分，与运输成本分开统计。
 
@@ -65,7 +69,17 @@ ctest --test-dir build --output-on-failure
 ./build/logistics_app --plan distance --simulate --scenario config/orders.json --capacity 100 --traffic --export exports/traffic
 ```
 
-示例订单包含成功插入、超载拒绝和窗口拒绝。Windows 本次 seed=42 完成 4 单，0 单超时，0 分处罚，约 10:56:08 空车返仓。不同标准库随机结果可能不同；[保存的演示数据](docs/examples/stage6/README.md) 可直接回放。
+示例订单包含成功插入、超载拒绝和窗口拒绝。当前 Windows seed=42 的原有演示在新路网中完成 4 单、0 超时、0 分处罚，约 10:00:04 返仓；保存的旧路网演示约 10:56:08 返仓。不同标准库随机结果可能不同；[历史演示数据](docs/examples/stage6/README.md) 可直接回放。
+
+## 中转站取货（已实现）
+
+正式页面的“取货地点”可选择仓库或 T01/T02/T03。订单发布时假定货物已在指定地点备好；车辆必须到站执行取货任务才装货，路过不会自动装货。中转站待取清单由已接受且尚未取货的订单计算；双车分配后归属固定，最终仍返回各自原仓库。
+
+```powershell
+.\build\Release\logistics_app.exe --plan distance --simulate --vehicles 2 --scenario config/hub-orders.json --capacity 40 --traffic --export exports/hub-fleet
+```
+
+[规则与接口](docs/transfer-stations.md) · [当前路网 SVG](docs/maps/network.svg) · [本次验证](docs/reports/hub-pickup.md)。单车运行将 --vehicles 改为 1、--capacity 改为 100。旧 warehouse_id 订单字段仍可读取，新配置推荐 pickup_node_id。
 
 ## 双车运行（CLI）
 

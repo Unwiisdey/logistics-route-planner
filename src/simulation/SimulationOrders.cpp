@@ -61,7 +61,7 @@ void Simulation::add_order_record(const Order& order, bool loaded) {
     orders_.push_back(order);
     DeliveryRecord task;
     task.order_id = order.id(); task.node_id = order.delivery_node_id(); task.quantity = order.quantity();
-    task.window = order.time_window(); task.warehouse_id = order.warehouse_id(); task.priority = order.priority();
+    task.window = order.time_window(); task.pickup_node_id = order.pickup_node_id(); task.warehouse_id = task.pickup_node_id; task.priority = order.priority();
     task.loaded = loaded;
     if (loaded) { task.picked_up_at = clock_->now(); }
     deliveries_.push_back(std::move(task));

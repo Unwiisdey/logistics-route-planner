@@ -1,0 +1,73 @@
+{
+  "schema_version": 1,
+  "initial_orders": [
+    {
+      "id": "O01",
+      "delivery_node_id": "D03",
+      "quantity": 20,
+      "time_window": {
+        "earliest": 480,
+        "latest": 900
+      },
+      "pickup_node_id": "W01"
+    },
+    {
+      "id": "O02",
+      "delivery_node_id": "D12",
+      "quantity": 20,
+      "time_window": {
+        "earliest": 480,
+        "latest": 900
+      },
+      "pickup_node_id": "W01"
+    },
+    {
+      "id": "O03",
+      "delivery_node_id": "D21",
+      "quantity": 20,
+      "time_window": {
+        "earliest": 480,
+        "latest": 900
+      },
+      "pickup_node_id": "W01"
+    }
+  ],
+  "dynamic_orders": [
+    {
+      "id": "HUB01",
+      "pickup_node_id": "T02",
+      "delivery_node_id": "D18",
+      "quantity": 5,
+      "time_window": {
+        "earliest": 482,
+        "latest": 650
+      },
+      "release_time": 482,
+      "priority": "urgent"
+    },
+    {
+      "id": "HUB-OVERLOAD",
+      "pickup_node_id": "T01",
+      "delivery_node_id": "D07",
+      "quantity": 2000,
+      "time_window": {
+        "earliest": 483,
+        "latest": 900
+      },
+      "release_time": 483,
+      "priority": "urgent"
+    },
+    {
+      "id": "HUB-IMPOSSIBLE",
+      "pickup_node_id": "T03",
+      "delivery_node_id": "D25",
+      "quantity": 5,
+      "time_window": {
+        "earliest": 484,
+        "latest": 484.001
+      },
+      "release_time": 484,
+      "priority": "urgent"
+    }
+  ]
+}
