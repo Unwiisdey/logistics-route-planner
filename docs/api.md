@@ -118,3 +118,13 @@ Simulation::waiting_pickups(node_id)、FleetSimulation::waiting_pickups(node_id)
 OrderConfigLoader 允许 pickup_node_id 或旧 warehouse_id，恰好提供一个；初始订单仍从出发仓库预装，动态单可在中转站备货。home warehouse / OrderPlanningContext::warehouse 始终是返仓仓库。
 
 UI API 接受 pickup_node_id，兼容旧 warehouse 请求参数，二者同时出现拒绝；状态 pickup_points 包含中转站的 node_id 和 waiting_orders。订单状态返回规范 pickup_node_id 及旧别名。取货仍为瞬时动作，不引入装货服务时长。
+
+## 正式双车 UI 协议（ui_version=2）
+
+默认桥接进程持有 FleetSimulation，V01/V02 从 W01 出发、每车 40 kg。GET /api/state 返回 app=logistics-route-planner、ui_version=2、demo=false、engine、time、finished、nodes、edges、vehicles、orders、events、traffic_version、pickup_points、penalty_rule、latest_insertion。此为原单车 UI 协议的升级：原顶层 frame/segment/task_path 改为共享 time 及 vehicles 中各车状态；CLI 和 C++ 单车接口不变。
+
+vehicles 含 id/capacity/load/status、节点或边位置、当前 segment 的 total/remaining/arrival、下一单与返仓 ETA、completed_at、完成/超时/处罚、future_nodes/future_roads、traversals、tasks/current_task、replan、revision。任务源自 Simulation::remaining_actions()，返回未完成动作，当前卸货/等待动作保持首位；路线取送顺序与站点来源以核心状态为准。
+
+POST /api/command 接受 state/reset/advance/insert/traffic。advance.minutes 为 (0,10] 的有限分钟；所有车只推进共享时钟一次，空闲车仍可等未来订单。insert.order 使用 pickup_node_id（兼容旧 warehouse，不能同时提供）、destination、quantity、earliest/latest、priority、可选 id（最多 40 字节）；留空生成不与已用 ID 冲突的 MANUALn。成功响应 insertion 含 accepted/id/vehicle_id/reason/path；业务拒单 ok=true 且 accepted=false，非法输入 ok=false。
+
+traffic.road_id 将道路当前耗时乘 1.8；可选 minutes 直接指定绝对耗时（核心校验有限非负）。只在当前已验证的本机来源下接受 HTTP 请求，仍保留 Host/Origin 与 8192 字节上限。latest_insertion 保存最近一次已接受的插入前后路径，刷新页面可继续查看；拒单不覆盖它。reset 清除本轮订单与比较记录，保留初始配置。

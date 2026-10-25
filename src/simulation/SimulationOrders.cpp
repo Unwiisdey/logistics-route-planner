@@ -107,6 +107,13 @@ OrderPlanningContext Simulation::order_context() const {
     }
     return ctx;
 }
+std::vector<OrderAction> Simulation::remaining_actions() const {
+    auto result = order_context().incumbent;
+    if (active_delivery_ && !deliveries_[*active_delivery_].delivered_at) {
+        result.insert(result.begin(), {deliveries_[*active_delivery_].order_id, OrderActionKind::Delivery});
+    }
+    return result;
+}
 InsertionResult Simulation::plan_insertion(const Order& order, ShortestPathCache* cache) const {
     InsertionResult result;
     const auto ctx = order_context();

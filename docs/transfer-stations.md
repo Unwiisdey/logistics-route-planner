@@ -40,7 +40,7 @@ DeliveryRecord 与 UI 状态包含规范 pickup_node_id 和兼容别名；delive
 .\build\Release\logistics_app.exe --plan distance --simulate --scenario config/hub-orders.json --capacity 100 --traffic --export exports/hub-single
 ```
 
-正式本地 UI 的取货地点可选 W01/W02/T01/T02/T03，任务显示“取货 · HUB-DEMO（T02）”，并显示各站待取数量；该页面保留单车布局。双车核心由 CLI 使用，双车页面仍为此前的独立 Demo，未在本次替换正式界面布局。
+正式本地 UI 的取货地点可选 W01/W02/T01/T02/T03，任务显示“取货 · HUB-DEMO（T02）”，并显示各站待取数量；该页面现已采用批准的双车 Demo 布局，默认两车每车 40 kg，真实调用双车调度核心。
 
 ## 当前路网
 

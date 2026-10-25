@@ -1,86 +1,92 @@
 const {chromium}=require(process.env.DEMO_PLAYWRIGHT || 'playwright');
 const assert=require('node:assert/strict');
-const path=require('node:path');
 const fs=require('node:fs');
+const path=require('node:path');
 (async()=>{
-  const browser=await chromium.launch({channel:process.env.DEMO_BROWSER_CHANNEL || (process.platform==='win32'?'msedge':undefined),headless:true});
-  try{
-    const page=await browser.newPage({viewport:{width:1280,height:1500},colorScheme:'light'});
-    const errors=[];page.on('pageerror',e=>errors.push(e.message));
-    await page.goto('http://127.0.0.1:8765/');
-    await page.waitForFunction(()=>document.querySelector('[data-view=notice]').textContent.includes('已连接 C++'));
-    const text=name=>page.locator(`[data-view="${name}"]`).innerText();
-    await page.getByRole('button',{name:'重置仿真',exact:true}).click();
-    await page.waitForFunction(()=>document.querySelector('[data-view=notice]').textContent.includes('已重置'));
-    assert.equal(await text('completed'),'0 / 3');
-    assert((await page.locator('.lp-preview').innerText()).includes('正式 UI'));
-    assert((await page.locator('.lp-footer > span').first().innerText()).includes('迟到分钟向上取整 × 1 分/分钟'));
-    assert((await text('current-task')).startsWith('送货 · O'));
-    assert((await text('task-path')).endsWith('返仓 · W01'));
-    const initialState=await (await page.request.get('http://127.0.0.1:8765/api/state')).json();
-    const lockedDuration=initialState.segment.total;
-    assert((await text('segment-total')).includes(lockedDuration.toFixed(2)));
-    const oldPath=await text('path');
-    await page.locator('[name=id]').fill('WEB-01');
-    await page.getByRole('button',{name:'提交动态订单',exact:true}).click();
-    await page.waitForFunction(()=>document.querySelector('[data-view=form-result]').textContent.includes('已接受 WEB-01'));
-    assert.equal(await text('completed'),'0 / 4');assert.notEqual(await text('path'),oldPath);
-    assert((await text('current-task')).startsWith('取货 · WEB-01'));
-    assert((await text('task-path')).includes('取货 · WEB-01'));
-    assert((await text('task-path')).includes('送货 · WEB-01'));
-    const acceptedTasks=await text('task-path');
-    assert((await text('orders')).includes('待取货'));assert.equal(await text('load'),'60.0 / 100 kg');
-    await page.locator('[name=id]').fill('WEB-OVERLOAD');await page.locator('[name=quantity]').fill('2000');
-    await page.getByRole('button',{name:'提交动态订单',exact:true}).click();
-    await page.waitForFunction(()=>document.querySelector('[data-view=form-result]').textContent.includes('WEB-OVERLOAD 已拒绝'));
-    assert((await text('form-result')).includes('载重上限'));assert.equal(await text('completed'),'0 / 4');
-    assert.equal(await text('task-path'),acceptedTasks);
-    await page.locator('[name=id]').fill('WEB-WINDOW');await page.locator('[name=quantity]').fill('5');
-    await page.locator('[name=destination]').selectOption('D25');await page.locator('[name=latest]').fill('08:01');
-    await page.getByRole('button',{name:'提交动态订单',exact:true}).click();
-    await page.waitForFunction(()=>document.querySelector('[data-view=form-result]').textContent.includes('WEB-WINDOW 已拒绝'));
-    assert((await text('form-result')).includes('时间窗口'));
-    await page.locator('[data-field=weights]').check();await page.locator('[data-field=road]').selectOption(initialState.segment.id);
-    await page.getByRole('button',{name:'单步 +1 分钟',exact:true}).click();
-    await page.waitForFunction(()=>document.querySelector('[data-view=clock]').textContent==='08:01:00');
-    assert((await text('segment-total')).includes(lockedDuration.toFixed(2)));assert((await text('remaining')).includes((lockedDuration-1).toFixed(2)));
-    await page.getByRole('button',{name:'开始仿真',exact:true}).click();
-    await page.waitForFunction(()=>document.querySelector('[data-view=clock]').textContent!=='08:01:00');
-    await page.getByRole('button',{name:'暂停仿真',exact:true}).click();
-    await page.waitForFunction(()=>!document.querySelector('[type=submit]').disabled);
-    const paused=await text('clock');await page.waitForTimeout(400);assert.equal(await text('clock'),paused);
-    await page.locator('[name=id]').fill('');await page.locator('[name=quantity]').fill('15');await page.locator('[name=latest]').fill('12:00');
-    // Verify automatic IDs and a second insertion while already in transit.
-    await page.locator('[name=destination]').selectOption('D04');
-    await page.getByRole('button',{name:'提交动态订单',exact:true}).click();
-    await page.waitForFunction(()=>document.querySelector('[data-view=form-result]').textContent.includes('已接受 MANUAL'));
-    assert.equal(await text('completed'),'0 / 5');
-    for(const width of [1280,1024,390,320]){
-      await page.setViewportSize({width,height:1500});await page.waitForTimeout(100);
-      const sizes=await page.evaluate(()=>({scroll:document.documentElement.scrollWidth,width:innerWidth}));
-      assert(sizes.scroll<=sizes.width,`overflow at ${width}`);
-      await page.screenshot({path:path.join(__dirname,`live-preview-${width}.png`),fullPage:true});
-    }
-    // Exercise the same HTTP adapter through to actual completed deliveries.
-    let payload;
-    for(let i=0;i<100;i++){
-      const response=await page.request.post('http://127.0.0.1:8765/api/command',{data:{cmd:'advance',minutes:5}});
-      payload=await response.json();assert(payload.ok);assert(payload.frame.load<=100);
-      if(payload.frame.finished)break;
-    }
-    assert(payload.frame.finished);assert.equal(payload.frame.delivered_count,5);assert.equal(payload.frame.load,0);
-    assert(payload.orders.find(o=>o.id==='WEB-01').completed!==null);
-    await page.reload();await page.waitForFunction(()=>document.querySelector('[data-view=completed]').textContent==='5 / 5');
-    assert.equal(await text('position'),'W01');
-    assert.equal(await text('current-task'),'全部任务完成');assert.equal(await text('task-path'),'全部任务完成');
-    const external=await page.request.post('http://127.0.0.1:8765/api/command',{data:{cmd:'reset'},headers:{Origin:'https://example.com'}});
-    assert.equal(external.status(),403);
-    assert.deepEqual(errors,[]);
-    // Leave the user's demo in a clean initial state.
-    await page.getByRole('button',{name:'重置仿真',exact:true}).click();
-    await page.waitForFunction(()=>document.querySelector('[data-view=completed]').textContent==='0 / 3');
-    const result={passed:true,checks:['real C++ manual insertion','route changes','pickup precedes loading','overload rejection','window rejection','automatic order IDs','play/pause','locked entry duration','5 accepted orders delivered and returned','page refresh retains server state','local origin enforcement','320/390/1024/1280 layout','no JavaScript errors']};
-    fs.writeFileSync(path.join(__dirname,'live-verification.json'),JSON.stringify(result,null,2));console.log(JSON.stringify(result));
-  }finally{await browser.close();}
-})().catch(e=>{console.error(e);process.exitCode=1;});
-
+ const browser=await chromium.launch({channel:process.env.DEMO_BROWSER_CHANNEL || (process.platform==='win32'?'msedge':undefined),headless:true});
+ try {
+  const page=await browser.newPage({viewport:{width:1440,height:1100},deviceScaleFactor:1,colorScheme:'light'});
+  const errors=[];page.on('pageerror',e=>errors.push(e.message));
+  const request=async(cmd,extra={})=>{const r=await page.request.post('http://127.0.0.1:8765/api/command',{data:{cmd,...extra}});const d=await r.json();assert(d.ok,d.error);return d;};
+  await request('reset');
+  await page.goto('http://127.0.0.1:8765/');
+  await page.waitForFunction(()=>document.getElementById('connection').textContent.includes('已连接'));
+  assert((await page.locator('.review-badge').innerText()).includes('正式系统'));
+  assert((await page.title()).includes('双车配送调度'));
+  assert.equal(await page.locator('.vehicle-card').count(),2);
+  assert.equal(await page.locator('.vehicle-marker').count(),2);
+  assert((await page.locator('[data-vehicle=V01]').innerText()).includes('40.0 / 40 kg'));
+  assert((await page.locator('[data-vehicle=V02]').innerText()).includes('20.0 / 40 kg'));
+  await page.screenshot({path:path.join(__dirname,'live-preview-initial.png'),fullPage:true});
+  await page.getByRole('button',{name:'单步 +1 分钟',exact:true}).click();
+  await page.waitForFunction(()=>document.getElementById('clock').textContent==='08:01:00');
+  const before=await (await page.request.get('http://127.0.0.1:8765/api/state')).json();
+  await page.locator('[name=id]').fill('WEB-01');
+  await page.getByRole('button',{name:'提交并自动分配',exact:true}).click();
+  await page.waitForFunction(()=>document.getElementById('form-result').textContent.includes('已接受 WEB-01'));
+  const after=await (await page.request.get('http://127.0.0.1:8765/api/state')).json();
+  const accepted=after.orders.find(o=>o.id==='WEB-01');
+  assert(accepted.accepted && ['V01','V02'].includes(accepted.vehicle_id));
+  assert((await page.locator(`[data-vehicle=${accepted.vehicle_id}]`).innerText()).includes('取货 · WEB-01'));
+  assert((await page.locator(`[data-vehicle=${accepted.vehicle_id}]`).innerText()).includes('送货 · WEB-01'));
+  const loser=accepted.vehicle_id==='V01'?'V02':'V01';
+  assert.equal(after.vehicles.find(v=>v.id===loser).total_orders,before.vehicles.find(v=>v.id===loser).total_orders);
+  const stableTasks=await page.locator('#vehicles').innerText();
+  await page.locator('[name=id]').fill('WEB-OVERLOAD');await page.locator('[name=quantity]').fill('2000');
+  await page.getByRole('button',{name:'提交并自动分配',exact:true}).click();
+  await page.waitForFunction(()=>document.getElementById('form-result').textContent.includes('WEB-OVERLOAD 已拒绝'));
+  const refusal=await page.locator('#form-result').innerText();assert(refusal.includes('V01')&&refusal.includes('V02')&&refusal.includes('载重'));
+  assert.equal(await page.locator('#vehicles').innerText(),stableTasks);
+  await page.locator('[name=id]').fill('WEB-LATE');await page.locator('[name=quantity]').fill('5');
+  await page.locator('[name=destination]').selectOption('D25');await page.locator('[name=latest]').fill('08:02');
+  await page.getByRole('button',{name:'提交并自动分配',exact:true}).click();
+  await page.waitForFunction(()=>document.getElementById('form-result').textContent.includes('WEB-LATE 已拒绝'));
+  assert((await page.locator('#form-result').innerText()).includes('时间窗口'));
+  await page.locator('[name=earliest]').fill('09:00');await page.locator('[name=latest]').fill('08:00');
+  await page.getByRole('button',{name:'提交并自动分配',exact:true}).click();
+  assert((await page.locator('#form-result').innerText()).includes('不能早于'));
+  const current=after.vehicles.find(v=>v.segment);
+  await page.locator('#road').selectOption(current.edge_id);
+  await page.locator('#weights').selectOption('time');
+  const oldRoad=after.edges.find(e=>e.id===current.edge_id).time;
+  await page.getByRole('button',{name:'模拟该路拥堵',exact:true}).click();
+  await page.waitForFunction(()=>document.getElementById('notice').textContent.includes('增加 80%'));
+  const changed=await (await page.request.get('http://127.0.0.1:8765/api/state')).json();
+  assert(Math.abs(changed.edges.find(e=>e.id===current.edge_id).time-oldRoad*1.8)<1e-9);
+  for(const v of after.vehicles.filter(v=>v.edge_id===current.edge_id))assert.equal(changed.vehicles.find(w=>w.id===v.id).segment.total,v.segment.total);
+  await page.locator('[data-focus=V01]').click();
+  assert.equal(await page.locator('.vehicle-marker').count(),2);
+  await page.locator('#log-filter').selectOption('V02');assert.equal(await page.locator('#events .event-source.V01').count(),0);
+  await page.getByRole('button',{name:'▶ 开始仿真',exact:true}).click();
+  await page.waitForFunction(()=>document.getElementById('clock').textContent!=='08:01:00');
+  await page.getByRole('button',{name:'Ⅱ 暂停仿真',exact:true}).click();
+  await page.waitForFunction(()=>!document.getElementById('step').disabled);
+  const paused=await page.locator('#clock').innerText();await page.waitForTimeout(850);assert.equal(await page.locator('#clock').innerText(),paused);
+  // Complete the actual accepted manual order, not a frontend-only success message.
+  let finished=changed;
+  for(let i=0;i<150 && !finished.finished;i++)finished=await request('advance',{minutes:5});
+  assert(finished.finished,'fleet must finish');
+  const actual=finished.orders.find(o=>o.id==='WEB-01');assert(actual.completed!==null && actual.pickup!==null);
+  assert.equal(finished.orders.filter(o=>o.accepted&&o.completed!==null).length,4);
+  assert(finished.vehicles.every(v=>v.tasks.length===0&&v.load===0));
+  // Prepare a useful paused state for visual review.
+  await page.getByRole('button',{name:'重置',exact:true}).click();
+  await page.waitForFunction(()=>document.getElementById('clock').textContent==='08:00:00');
+  await page.locator('#weights').selectOption('none');await page.locator('#log-filter').selectOption('all');
+  await page.locator('[name=id]').fill('MANUAL1');await page.locator('[name=destination]').selectOption('D05');
+  await page.locator('[name=quantity]').fill('5');await page.locator('[name=earliest]').fill('08:00');await page.locator('[name=latest]').fill('09:00');
+  await page.getByRole('button',{name:'提交并自动分配',exact:true}).click();
+  await page.waitForFunction(()=>document.getElementById('form-result').textContent.includes('已接受 MANUAL1'));
+  for(let i=0;i<8;i++){await page.getByRole('button',{name:'单步 +1 分钟',exact:true}).click();await page.waitForFunction(()=>!document.getElementById('step').disabled);}
+  await page.getByRole('button',{name:'全部车辆',exact:true}).click();
+  for(const width of [1440,1280,1024,390,320]){
+    await page.setViewportSize({width,height:1100});await page.waitForTimeout(100);
+    const size=await page.evaluate(()=>({width:innerWidth,scroll:document.documentElement.scrollWidth}));
+    assert(size.scroll<=size.width,`viewport overflow ${width}: ${size.scroll}`);
+    await page.screenshot({path:path.join(__dirname,`live-preview-${width}.png`),fullPage:true});
+  }
+  assert.equal(errors.length,0,errors.join('\n'));
+  fs.writeFileSync(path.join(__dirname,'live-verification.json'),JSON.stringify({passed:true,checks:['two vehicles','shared timeline','manual insertion and actual completion','fixed ownership','capacity and window rejection','no mutation on rejection','locked entry duration','manual traffic','focus and filters','play and pause','responsive widths','no browser errors'],widths:[1440,1280,1024,390,320]},null,2));
+  console.log('PASS: fleet UI interactions, real delivery, traffic, responsive widths and screenshots');
+ } finally {await browser.close();}
+})().catch(e=>{console.error(e);process.exit(1);});

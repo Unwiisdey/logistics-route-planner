@@ -123,6 +123,7 @@ public:
     const std::vector<RouteRevision>& route_revisions() const noexcept { return revisions_; }
     SimulationSnapshot snapshot() const;
     std::vector<NodeId> remaining_deliveries() const;
+    std::vector<OrderAction> remaining_actions() const;
     std::vector<OrderId> waiting_pickups(const NodeId& pickup_node) const;
     void write_log(std::ostream& output) const;
     // Also exports the static route/network CSVs understood by plot_network.py.

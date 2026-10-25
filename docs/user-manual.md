@@ -138,7 +138,7 @@ Path cache 日志的 misses 表示实际最短路请求，hits 表示避免了�
 
 订单先按约束判断，再比较方案。距离/成本路径预计超时，会尝试耗时最短；仍不满足全部剩余窗口、取送和容量则拒绝。旧静态 --plan（未进入硬窗口订单模式）不改变算法。
 
-导出目录含 assignments.csv、V01/、V02/；可分别将车辆子目录交给原 plot_traffic.py 回放，尚无两车叠加画图。现有 Web UI 仍为单车，不会因启动器自动切换双车；[双车 UI 设计方案](fleet-ui-design.md) 仅为后续设计。
+导出目录含 assignments.csv、V01/、V02/；可分别将车辆子目录交给原 plot_traffic.py 回放，尚无两车叠加画图。正式 Web UI 默认双车运行，并采用批准的 Demo 布局；[双车界面说明](fleet-ui-design.md)。CLI 仍按 --vehicles 参数选择单车或双车。
 
 ## 从中转站取货
 

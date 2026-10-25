@@ -1,9 +1,10 @@
 {
-  "name": "logistics-ui-demo-checks",
+  "name": "logistics-fleet-ui-checks",
   "private": true,
   "scripts": {
     "check:replay": "node verify_demo.cjs",
-    "check:live": "node verify_live.cjs"
+    "check:live": "node verify_live.cjs",
+    "check:hubs": "node verify_hubs.cjs"
   },
   "devDependencies": {
     "playwright": "1.62.1"

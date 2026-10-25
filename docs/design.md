@@ -28,6 +28,8 @@ flowchart TD
 
 `model` 负责值对象与校验；`graph` 负责网络；`config` 隔离 JSON；`planning` 不修改车辆；`simulation` 是运行状态唯一修改者；`traffic` 生成并校验边权事件；`visualization` 输出可审查数据。
 
+正式界面采用 FleetSession → FleetSimulation → Simulation。页面仅展示 JSON；任务顺序来自 Simulation::remaining_actions()，包括尚未生效的新路线和当前锁定的卸货动作，不在桥接层维护第二套任务队列。默认 V01/V02 每车 40 kg，原单车 CLI 入口仍可独立使用。
+
 ## 数据与不变量
 
 - Graph：节点哈希表 + 按起点分组的邻接向量，空间 O(V+E)。简单有向图；反向道路独立，禁止自环、重复 ID、同方向平行边。矩阵按需生成 O(V²)。当前道路 ID 查询为 O(E)，未伪称常数复杂度。

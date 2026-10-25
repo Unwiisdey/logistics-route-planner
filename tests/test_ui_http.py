@@ -53,36 +53,44 @@ class UIHTTPTests(unittest.TestCase):
     def test_formal_page_and_identity(self):
         with urlopen(self.url+"/", timeout=5) as response:
             html = response.read().decode("utf-8")
-        self.assertIn("正式 UI · C++ 驱动",html)
-        self.assertIn('data-view="current-task"',html)
-        self.assertIn('迟到分钟向上取整 × 1 分/分钟',html)
+        self.assertIn("正式系统 · 双车调度",html)
+        self.assertIn('id="vehicles"',html)
+        self.assertIn('每分钟处罚 1 分',html)
         self.assertNotIn('超时每单处罚 10 分',html)
         with urlopen(self.url+"/api/state", timeout=5) as response:
             state = json.load(response)
         self.assertEqual(state["app"],"logistics-route-planner")
-        self.assertEqual(state["frame"]["time"],480)
+        self.assertEqual(state["time"],480)
         self.assertEqual(state["penalty_rule"],{"rate_per_minute":1.0,"rounding":"ceil","based_on":"service_start"})
 
     def test_insert_advance_and_refresh_state(self):
         inserted = self.post({"cmd":"insert","order":{"warehouse":"W01","destination":"D05",
             "quantity":15,"earliest":480,"latest":720,"priority":"urgent"}})
         self.assertTrue(inserted["insertion"]["accepted"])
-        self.assertEqual(inserted["current_task"]["kind"],"pickup")
+        winner = next(v for v in inserted["vehicles"] if v["id"]==inserted["insertion"]["vehicle_id"])
+        self.assertEqual(winner["current_task"]["kind"],"pickup")
         self.assertEqual(len([o for o in inserted["orders"] if o["accepted"]]),4)
         advanced = self.post({"cmd":"advance","minutes":1})
-        self.assertEqual(advanced["frame"]["time"],481)
+        self.assertEqual(advanced["time"],481)
         with urlopen(self.url+"/api/state", timeout=5) as response:
             refreshed = json.load(response)
-        self.assertEqual(refreshed["task_path"],advanced["task_path"])
+        self.assertEqual(refreshed["vehicles"],advanced["vehicles"])
+
+    def test_manual_traffic_is_available(self):
+        before = self.post({"cmd":"state"})
+        road = before["vehicles"][0]["edge_id"]
+        result = self.post({"cmd":"traffic","road_id":road})
+        self.assertTrue(result["ok"])
+        self.assertGreater(result["traffic_version"],before["traffic_version"])
 
     def test_unknown_command_and_external_origin_cannot_mutate_state(self):
-        for body, headers, status in [({"cmd":"traffic"},{},400),
+        for body, headers, status in [({"cmd":"unknown"},{},400),
                 ({"cmd":"reset"},{"Origin":"https://example.com"},403)]:
             with self.subTest(status=status):
                 with self.assertRaises(HTTPError) as caught:
                     self.post(body,**headers)
                 self.assertEqual(caught.exception.code,status)
-        self.assertEqual(self.bridge.command({"cmd":"state"})["frame"]["time"],480)
+        self.assertEqual(self.bridge.command({"cmd":"state"})["time"],480)
 
     def test_invalid_input_returns_error_without_stopping_service(self):
         invalid = self.post({"cmd":"insert","order":{"warehouse":"W01","destination":"D05",

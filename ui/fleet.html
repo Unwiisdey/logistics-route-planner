@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>双车配送调度 · 电商物流配送系统</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="app">
+  <header class="header">
+    <div class="brand"><div class="logo" aria-hidden="true"><svg viewBox="0 0 32 32"><path d="M8 8h16v16H8z" fill="none" stroke="currentColor" stroke-width="2" stroke-dasharray="4 3"/><circle cx="8" cy="8" r="4" fill="currentColor"/><circle cx="24" cy="24" r="4" fill="#ffba72"/></svg></div><div><p class="eyebrow">LOGISTICS / FLEET CONTROL</p><h1>双车配送调度</h1></div></div>
+    <div class="header-end"><span class="connection" id="connection">正在连接</span><span class="review-badge">正式系统 · 双车调度</span></div>
+  </header>
+  <div class="review-strip"><span class="review-dot"></span><span>双车配送工作台</span><span class="strip-separator">/</span><span>仓库 / 中转站取货 · 动态插单 · 自动重规划</span></div>
+  <main>
+    <section class="control-bar" aria-label="仿真控制">
+      <div class="clock-box"><span class="caption">共享模拟时钟</span><strong id="clock">08:00:00</strong></div>
+      <div class="control-buttons"><button class="primary" id="play" disabled>▶ 开始仿真</button><button id="step" disabled>单步 +1 分钟</button><label class="speed-label">播放速度<select id="speed" aria-label="播放速度"><option value="0.5">0.5 分钟 / 步</option><option value="1" selected>1 分钟 / 步</option><option value="5">5 分钟 / 步</option></select></label><button class="text-button" id="reset" disabled>重置</button></div>
+      <div class="shared-note"><i></i>同一路网 · 同一时钟 · 订单归属固定</div>
+    </section>
+    <section class="metrics" aria-label="车队概览">
+      <article><span class="caption">配送完成</span><strong id="completed">0 <small>/ 3 单</small></strong><span class="metric-note">两辆车合计</span></article>
+      <article><span class="caption">执行任务车辆</span><strong id="active">2 <small>/ 2 辆</small></strong><span class="metric-note">独立载重与任务</span></article>
+      <article><span class="caption">当前拥堵道路</span><strong id="congested">0 <small>条</small></strong><span class="metric-note">每 30 秒统一更新</span></article>
+      <article><span class="caption">累计处罚</span><strong id="penalty">0 <small>分</small></strong><span class="metric-note" id="late-note">超时 0 单 · 向上取整计分钟</span></article>
+    </section>
+    <div id="notice" class="notice" role="status" aria-live="polite">正在读取配送网络…</div>
+    <div class="workspace">
+      <section class="panel map-panel">
+        <div class="panel-heading"><div><h2>配送网络</h2><p class="muted"><span id="network-count">正在读取网络…</span></p></div><label class="map-weight">道路标签<select id="weights" aria-label="道路标签"><option value="none">不显示</option><option value="time">当前耗时</option><option value="distance">距离</option></select></label></div>
+        <div class="map-toolbar"><div class="segmented" id="focus-group" aria-label="路线聚焦"><button class="selected" data-focus="all">全部车辆</button><button data-focus="V01">● V01</button><button data-focus="V02">● V02</button></div><span class="map-help">点车辆聚焦 · 点道路查看</span></div>
+        <div id="map" class="map" aria-label="双车配送网络"></div><p class="map-pan-hint">左右滑动地图，查看完整网络与道路方向</p>
+        <div class="legend"><span><i class="key blue"></i>V01 路线</span><span><i class="key orange"></i>V02 路线</span><span><i class="key red"></i>拥堵</span><span><i class="key dashed"></i>待走路径</span><span><b class="warehouse-key">▣</b>仓库</span><span><b class="transfer-key">◆</b>中转站</span></div>
+        <div class="road-inspector"><label>查看道路<select id="road" aria-label="查看道路"></select></label><div id="road-info" class="muted">选择一条道路查看实时权重</div><button id="jam" disabled>模拟该路拥堵</button></div>
+        <div class="map-footnote">道路标签为当前路况预计耗时；车辆卡片中的在途耗时在驶入道路时锁定。</div>
+      </section>
+      <aside class="vehicle-stack" aria-label="两辆车运行状态" id="vehicles"></aside>
+    </div>
+    <div class="order-workspace">
+      <section class="panel order-form-panel"><div class="panel-heading"><div><h2>添加动态订单</h2><p class="muted">分别试算两车，系统自动选择可行车辆</p></div><span class="small-icon">＋</span></div>
+        <form id="order-form">
+          <div class="form-grid"><label class="wide">订单 ID <span class="optional">可留空，自动生成</span><input name="id" maxlength="40" placeholder="例如 MANUAL1" autocomplete="off"></label><label>取货地点<select name="warehouse" required></select></label><label>配送点<select name="destination" required></select></label><label>货物量 / kg<input name="quantity" type="number" min="0.01" step="0.01" value="5" required></label><label>优先级<select name="priority"><option value="urgent">紧急订单</option><option value="normal">普通订单</option></select></label><label>窗口开始<input name="earliest" type="time" value="08:00" required></label><label>窗口结束<input name="latest" type="time" value="09:00" required></label></div>
+          <button class="primary submit-order" type="submit" disabled>提交并自动分配</button><p class="form-hint">先满足取货、载重与全部剩余窗口，再比较送达时间。</p><p class="form-hint" id="pickup-points" aria-live="polite"></p><div id="form-result" class="form-result" role="status" aria-live="polite"></div>
+        </form>
+      </section>
+      <section class="panel orders-panel"><div class="panel-heading"><div><h2>订单与车辆归属</h2><p class="muted">分配后保持归属，已完成订单仍保留记录</p></div><span class="count-badge" id="order-count">3 单</span></div><div class="table-scroll"><table><thead><tr><th>订单 / 配送点</th><th>所属车辆</th><th>货物</th><th>时间窗口</th><th>状态</th><th>处罚</th></tr></thead><tbody id="orders"></tbody></table></div><div class="table-note">早到等待；以开始卸货时判断迟到。迟到分钟向上取整，每分钟处罚 1 分。</div></section>
+    </div>
+    <div class="event-workspace"><section class="panel events-panel"><div class="panel-heading"><div><h2>事件日志</h2><p class="muted">统一时间线，查看分单、取送与共享路况</p></div><select id="log-filter" aria-label="日志筛选"><option value="all">全部事件</option><option value="V01">V01</option><option value="V02">V02</option><option value="order">订单分配</option><option value="traffic">共享路况</option></select></div><ol id="events"></ol></section><section class="panel replan-panel"><div class="panel-heading"><div><h2>最近路线调整</h2><p class="muted">保留已有任务归属，修复受影响区间</p></div></div><div id="replan-detail" class="replan-detail"><div class="empty-state">出现拥堵或插入订单后，<br>在这里查看路线调整结果。</div></div></section></div>
+    <footer><span>C++17 双车配送系统 · 两车各 40 kg · 本地运行</span><span><a href="/replay.html">查看历史单车回放</a></span></footer>
+  </main>
+</div>
+<script src="app.js"></script>
+</body></html>

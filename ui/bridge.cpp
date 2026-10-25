@@ -1,171 +1,163 @@
 #include "logistics/config/ConfigLoader.h"
 #include "logistics/config/OrderConfigLoader.h"
-#include "logistics/simulation/Simulation.h"
+#include "logistics/simulation/FleetSimulation.h"
 #include <nlohmann/json.hpp>
 #include <algorithm>
 #include <cmath>
 #include <iostream>
-#include <map>
-#include <memory>
-#include <stdexcept>
+#include <set>
 
-using json = nlohmann::json;
 using namespace logistics;
-template<class T> json nullable(const std::optional<T>& value) { return value ? json(*value) : json(nullptr); }
-
-class SimulationSession {
-    Graph graph_;
-    std::vector<Order> initial_;
-    std::unique_ptr<Simulation> sim_;
-    std::map<OrderId, json> requests_;
+using json = nlohmann::json;
+template<class T> json nullable(const std::optional<T>& v) { return v ? json(*v) : json(nullptr); }
+json action_json(const OrderAction& action, const DeliveryRecord& record) {
+    const bool pickup = action.kind == OrderActionKind::Pickup;
+    return {{"kind", pickup ? "pickup" : "delivery"}, {"order_id", record.order_id},
+            {"node_id", pickup ? record.pickup_node_id : record.node_id}};
+}
+class FleetSession {
+    Graph initial_graph_;
+    std::vector<Order> initial_orders_;
+    std::unique_ptr<FleetSimulation> fleet_;
     std::vector<json> rejected_;
-    std::vector<OrderAction> planned_actions_; // Actual stop order returned by the planner.
+    std::set<std::string> requested_;
     std::size_t generated_{0};
 public:
-    SimulationSession(const std::filesystem::path& network, const std::filesystem::path& scenario)
-        : graph_(ConfigLoader::load_network(network)),
-          initial_(OrderConfigLoader::load(scenario).initial_orders) { reset(); }
+    FleetSession(const std::filesystem::path& network, const std::filesystem::path& orders)
+        : initial_graph_(ConfigLoader::load_network(network)), initial_orders_(OrderConfigLoader::load(orders).initial_orders) { reset(); }
     void reset() {
-        SimulationOptions options; options.capacity_kg = 100; options.step_minutes = 1;
-        auto candidate = std::make_unique<Simulation>(graph_, "W01", initial_, 480, options);
-        candidate->enable_traffic();
-        sim_ = std::move(candidate); requests_.clear(); rejected_.clear(); generated_ = 0;
-        planned_actions_.clear();
-        for (const auto& stop : sim_->route_revisions().back().route.stops) {
-            planned_actions_.push_back(stop.action);
+        SimulationOptions o; o.step_minutes = 1; o.capacity_kg = 40;
+        auto candidate = std::make_unique<FleetSimulation>(initial_graph_,
+            std::vector<FleetVehicleSpec>{{"V01", "W01", 40}, {"V02", "W01", 40}}, initial_orders_, 480, o);
+        for (const auto& assignment : candidate->assignments()) {
+            if (!assignment.accepted) { throw std::invalid_argument("initial order cannot be assigned: " + assignment.order_id + ": " + assignment.reason); }
         }
-        for (const auto& order : initial_) {
-            requests_[order.id()] = {{"id",order.id()},{"warehouse_id",order.pickup_node_id()},{"pickup_node_id",order.pickup_node_id()},
-                {"delivery_node_id",order.delivery_node_id()},{"quantity",order.quantity()},
-                {"priority","normal"},{"release_time",480},{"accepted",true},
-                {"time_window",{{"earliest",order.time_window()->earliest},{"latest",order.time_window()->latest}}}};
-        }
+        candidate->enable_traffic(); fleet_ = std::move(candidate);
+        latest_insertion_ = nullptr; rejected_.clear(); requested_.clear(); generated_ = 0;
+        for (const auto& order : initial_orders_) { requested_.insert(order.id()); }
     }
     json state() const {
-        const auto f = sim_->snapshot();
-        json nodes = json::array(), edges = json::array(), orders = json::array(), events = json::array();
-        for (const auto& entry : sim_->network().nodes()) {
-            const auto& n = entry.second;
-            nodes.push_back({{"id",n.id()},{"type",to_string(n.type())},{"x",n.x()},{"y",n.y()}});
-            for (const auto& e : sim_->network().outgoing_edges(n.id())) {
-                edges.push_back({{"id",e.id()},{"from_id",e.from_id()},{"to_id",e.to_id()},
-                    {"time",e.time()},{"base_time",e.base_time()},{"distance",e.distance()},
-                    {"cost",e.cost()},{"traffic_status",to_string(e.traffic_status())}});
+        json nodes = json::array(), edges = json::array(), vehicles = json::array(), orders = json::array(), events = json::array();
+        std::vector<NodeId> sorted;
+        for (const auto& entry : fleet_->network().nodes()) { sorted.push_back(entry.first); }
+        std::sort(sorted.begin(), sorted.end());
+        for (const auto& id : sorted) {
+            const auto& n = *fleet_->network().find_node(id);
+            nodes.push_back({{"id", id}, {"type", to_string(n.type())}, {"x", n.x()}, {"y", n.y()}});
+            for (const auto& e : fleet_->network().outgoing_edges(id)) {
+                edges.push_back({{"id", e.id()}, {"from_id", e.from_id()}, {"to_id", e.to_id()}, {"time", e.time()},
+                    {"base_time", e.base_time()}, {"distance", e.distance()}, {"cost", e.cost()}, {"traffic_status", to_string(e.traffic_status())}});
             }
         }
-        for (const auto& record : sim_->deliveries()) {
-            auto o = requests_.at(record.order_id);
-            o["completed"] = nullable(record.delivered_at); o["service"] = nullable(record.service_start);
-            o["pickup"] = nullable(record.picked_up_at); o["late_minutes"] = record.late_minutes;
-            orders.push_back(std::move(o));
-        }
-        for (const auto& rejected : rejected_) { orders.push_back(rejected); }
-        json tasks = json::array();
-        for (const auto& action : planned_actions_) {
-            const auto found = std::find_if(sim_->deliveries().begin(), sim_->deliveries().end(),
-                [&](const DeliveryRecord& delivery) { return delivery.order_id == action.order_id; });
-            if (found == sim_->deliveries().end()) { throw std::logic_error("task references an unknown accepted order"); }
-            const bool pickup = action.kind == OrderActionKind::Pickup;
-            if (found->delivered_at || (pickup && found->picked_up_at)) { continue; }
-            tasks.push_back({{"kind",pickup ? "pickup" : "delivery"},{"order_id",action.order_id},
-                {"node_id",pickup ? found->pickup_node_id : found->node_id}});
-        }
-        if (!f.finished) { tasks.push_back({{"kind","return"},{"order_id",nullptr},{"node_id","W01"}}); }
-        const json current_task = tasks.empty() ? json(nullptr) : tasks.front();
-        json traversals = json::array(), last_trip = nullptr;
-        std::optional<SimulationSnapshot> departure;
-        for (const auto& e : sim_->events()) {
-            if (e.kind == "depart") { departure = e.state; }
-            if (e.kind == "arrive") {
-                traversals.push_back(e.detail);
-                if (departure && departure->edge_id && *departure->edge_id == e.detail) {
-                    last_trip = {{"road_id",e.detail},{"entered_at",departure->time},
-                        {"arrived_at",e.state.time},{"actual_minutes",e.state.time-departure->time}};
+        for (const auto& spec : fleet_->vehicle_specs()) {
+            const auto& sim = fleet_->vehicle(spec.id); const auto f = sim.snapshot();
+            json tasks = json::array(), traversals = json::array(), replan = nullptr;
+            for (const auto& action : sim.remaining_actions()) {
+                const auto found = std::find_if(sim.deliveries().begin(), sim.deliveries().end(), [&](const DeliveryRecord& d) { return d.order_id == action.order_id; });
+                if (found == sim.deliveries().end()) { throw std::logic_error("unknown task"); }
+                if (found->delivered_at || (action.kind == OrderActionKind::Pickup && found->picked_up_at)) { continue; }
+                tasks.push_back(action_json(action, *found));
+            }
+            if (!f.finished) { tasks.push_back({{"kind", "return"}, {"order_id", nullptr}, {"node_id", spec.warehouse}}); }
+            for (const auto& d : sim.deliveries()) {
+                json window = d.window ? json{{"earliest", d.window->earliest}, {"latest", d.window->latest}} : json(nullptr);
+                orders.push_back({{"id", d.order_id}, {"vehicle_id", spec.id}, {"destination", d.node_id}, {"warehouse", d.pickup_node_id}, {"pickup_node_id", d.pickup_node_id},
+                    {"quantity", d.quantity}, {"priority", d.priority == OrderPriority::Urgent ? "urgent" : "normal"}, {"accepted", true},
+                    {"window", window}, {"completed", nullable(d.delivered_at)}, {"pickup", nullable(d.picked_up_at)},
+                    {"arrival", nullable(d.arrival)}, {"service", nullable(d.service_start)}, {"late_minutes", d.late_minutes}, {"penalty", d.penalty_points}});
+            }
+            for (const auto& e : sim.events()) {
+                if (e.kind == "arrive") { traversals.push_back(e.detail); }
+                if (e.kind == "pickup" || e.kind == "delivered_on_time" || e.kind == "delivered_late" || e.kind == "returned" || e.kind == "window_risk") {
+                    events.push_back({{"time", e.state.time}, {"vehicle_id", spec.id}, {"kind", e.kind}, {"detail", e.detail}});
                 }
             }
-            // Keep the display compact without losing manual-order and route events.
-            if (e.kind != "traffic_change" && e.kind != "depart") {
-                events.push_back({{"time",e.state.time},{"kind",e.kind},{"detail",e.detail}});
+            for (auto i = sim.replanning_records().rbegin(); i != sim.replanning_records().rend(); ++i) {
+                if (i->searched_legs) {
+                    replan = {{"time", i->time}, {"before", i->before}, {"after", i->after}, {"searched", i->searched_legs}, {"reason", i->reason}};
+                    break;
+                }
             }
+            json segment = nullptr;
+            if (sim.vehicle().segment()) {
+                const auto& s = *sim.vehicle().segment();
+                segment = {{"id", s.road_id}, {"total", s.duration}, {"remaining", s.remaining}, {"arrival", f.time + s.remaining}};
+            }
+            vehicles.push_back({{"id", spec.id}, {"capacity", spec.capacity_kg}, {"load", f.load}, {"status", to_string(f.status)},
+                {"node_id", f.node_id.value_or("")}, {"from_id", f.from_id}, {"to_id", f.to_id}, {"edge_id", nullable(f.edge_id)},
+                {"x", f.x}, {"y", f.y}, {"progress", f.progress}, {"remaining", f.remaining_minutes}, {"segment", segment},
+                {"finished", f.finished}, {"completed_at", nullable(sim.completed_at())}, {"next_order", f.next_order}, {"next_arrival", nullable(f.next_arrival)},
+                {"return_eta", nullable(f.estimated_return)}, {"delivered", f.delivered_count}, {"late", f.late_count}, {"penalty", f.penalty_points},
+                {"total_orders", sim.deliveries().size()}, {"future_nodes", f.future_nodes}, {"future_roads", f.future_roads},
+                {"traversals", traversals}, {"tasks", tasks}, {"current_task", tasks.empty() ? json(nullptr) : tasks.front()},
+                {"replan", replan}, {"revision", f.route_revision}});
         }
-        if (events.size() > 16) { events.erase(events.begin(), events.end() - 16); }
-        json segment = nullptr;
-        if (sim_->vehicle().segment()) {
-            const auto& s = *sim_->vehicle().segment();
-            segment = {{"id",s.road_id},{"total",s.duration},{"remaining",s.remaining},
-                {"entered_at",f.time-(s.duration-s.remaining)},{"arrival_at",f.time+s.remaining}};
+        for (const auto& o : rejected_) { orders.push_back(o); }
+        for (const auto& a : fleet_->assignments()) {
+            events.push_back({{"time", a.time}, {"vehicle_id", a.vehicle_id.value_or("")}, {"kind", a.accepted ? "assigned" : "rejected"},
+                {"order_id", a.order_id}, {"detail", a.reason}, {"path", a.path}});
         }
-        json replan = nullptr;
-        for (auto i = sim_->replanning_records().rbegin(); i != sim_->replanning_records().rend(); ++i) {
-            if (i->searched_legs) { replan = {{"time",i->time},{"before",i->before},{"after",i->after},{"searched",i->searched_legs}}; break; }
-        }
+        const auto& reference = fleet_->vehicle("V01").traffic_changes();
+        std::map<Minutes, std::size_t> batches;
+        for (const auto& c : reference) { if (c.before != c.after) { ++batches[c.at]; } }
+        for (const auto& b : batches) { events.push_back({{"time", b.first}, {"vehicle_id", ""}, {"kind", "traffic"}, {"count", b.second}, {"detail", "shared road update"}}); }
+        std::stable_sort(events.begin(), events.end(), [](const json& a, const json& b) { return a.at("time").get<double>() > b.at("time").get<double>(); });
+        if (events.size() > 240) { events.erase(events.begin() + 240, events.end()); }
         json pickup_points = json::array();
-        for (const auto& entry : sim_->network().nodes()) {
-            if (entry.second.type() == NodeType::TransferStation) {
-                pickup_points.push_back({{"node_id", entry.first}, {"waiting_orders", sim_->waiting_pickups(entry.first)}});
+        for (const auto& id : sorted) {
+            if (fleet_->network().find_node(id)->type() == NodeType::TransferStation) {
+                pickup_points.push_back({{"node_id", id}, {"waiting_orders", fleet_->waiting_pickups(id)}});
             }
         }
-        const auto stats = sim_->path_cache_stats();
-        return {{"ok",true},{"app","logistics-route-planner"},{"ui_version",1},{"nodes",nodes},{"edges",edges},{"orders",orders},{"events",events},
-            {"traversals",traversals},{"capacity",100},{"segment",segment},{"last_trip",last_trip},{"replan",replan},
-            {"current_task",current_task},{"task_path",tasks},{"pickup_points",pickup_points},
-            {"penalty_rule",{{"rate_per_minute",SimulationOptions{}.late_penalty_per_minute},{"rounding","ceil"},{"based_on","service_start"}}},
-            {"cache",{{"hits",stats.hits},{"misses",stats.misses}}},
-            {"frame",{{"time",f.time},{"status",to_string(f.status)},{"node_id",f.node_id.value_or("")},
-            {"edge_id",f.edge_id.value_or("")},{"from_id",f.from_id},{"to_id",f.to_id},
-            {"remaining_minutes",f.remaining_minutes},{"progress",f.progress},{"x",f.x},{"y",f.y},{"load",f.load},
-            {"delivered_count",f.delivered_count},{"late_count",f.late_count},{"penalty_points",f.penalty_points},
-            {"finished",f.finished},{"route_revision",f.route_revision},{"estimated_return",nullable(f.estimated_return)},
-            {"next_order",f.next_order},{"next_arrival",nullable(f.next_arrival)},{"traffic_version",f.traffic_version},
-            {"completed_traversals",traversals.size()},{"future",f.future_roads},{"future_nodes",f.future_nodes}}}};
+        return {{"ok", true}, {"time", fleet_->clock().now()}, {"finished", fleet_->finished()}, {"nodes", nodes}, {"edges", edges},
+            {"vehicles", vehicles}, {"orders", orders}, {"events", events}, {"traffic_version", reference.size()},
+            {"app", "logistics-route-planner"}, {"ui_version", 2}, {"demo", false}, {"engine", "C++17 FleetSimulation"},
+            {"latest_insertion", latest_insertion_}, {"pickup_points", pickup_points},
+            {"penalty_rule", {{"rate_per_minute", SimulationOptions{}.late_penalty_per_minute}, {"rounding", "ceil"}, {"based_on", "service_start"}}}};
     }
     json command(const json& input) {
-        const auto cmd = input.at("cmd").get<std::string>();
-        json insertion = nullptr;
+        const auto cmd = input.at("cmd").get<std::string>(); json insertion = nullptr;
         if (cmd == "reset") { reset(); }
         else if (cmd == "advance") {
             const auto minutes = input.at("minutes").get<double>();
-            if (!std::isfinite(minutes) || minutes <= 0 || minutes > 10) { throw std::invalid_argument("advance minutes must be in (0,10]"); }
-            if (!sim_->finished()) { sim_->advance(minutes); }
+            if (!std::isfinite(minutes) || minutes <= 0 || minutes > 10) { throw std::invalid_argument("advance must be in (0,10]"); }
+            fleet_->advance(minutes);
         } else if (cmd == "traffic") {
-            // Deterministic hook for checking entry-time locking, also usable in tests.
-            const auto id = input.at("road_id").get<std::string>();
-            const auto minutes = input.at("minutes").get<double>();
-            sim_->apply_traffic({{id,minutes,TrafficStatus::Congested}});
+            const auto road = input.at("road_id").get<std::string>();
+            const auto* edge = fleet_->network().find_edge_by_id(road);
+            if (!edge) { throw std::invalid_argument("unknown road"); }
+            const auto duration = input.contains("minutes") ? input.at("minutes").get<double>() : edge->time() * 1.8;
+            fleet_->apply_traffic({{road, duration, TrafficStatus::Congested}});
         } else if (cmd == "insert") {
-            auto o = input.at("order");
-            const auto id = o.contains("id") ? o.at("id").get<std::string>()
-                                            : "MANUAL" + std::to_string(++generated_);
-            const auto priority = o.value("priority", "urgent");
-            if (priority != "urgent" && priority != "normal") { throw std::invalid_argument("unknown priority"); }
-            const double quantity = o.at("quantity").get<double>();
+            const auto& o = input.at("order");
+            auto id = o.value("id", std::string{});
+            if (id.empty()) { do { id = "MANUAL" + std::to_string(++generated_); } while (requested_.count(id)); }
+            if (id.size() > 40) { throw std::invalid_argument("order ID too long"); }
+            const auto quantity = o.at("quantity").get<double>();
             if (!std::isfinite(quantity) || quantity <= 0) { throw std::invalid_argument("quantity must be positive"); }
-            const TimeWindow window{o.at("earliest").get<double>(),o.at("latest").get<double>()};
+            const auto priority = o.value("priority", "urgent");
+            if (priority != "urgent" && priority != "normal") { throw std::invalid_argument("invalid priority"); }
+            const TimeWindow window{o.at("earliest").get<double>(), o.at("latest").get<double>()};
             if (o.contains("pickup_node_id") && o.contains("warehouse")) { throw std::invalid_argument("ambiguous pickup source"); }
-            const auto pickup_node = o.at(o.contains("pickup_node_id") ? "pickup_node_id" : "warehouse").get<std::string>();
-            const Order order(id,pickup_node,o.at("destination").get<std::string>(),
-                quantity,window,priority=="urgent"?OrderPriority::Urgent:OrderPriority::Normal,sim_->clock().now());
-            auto record = json{{"id",id},{"warehouse_id",order.pickup_node_id()},{"pickup_node_id",order.pickup_node_id()},
-                {"delivery_node_id",order.delivery_node_id()},{"quantity",quantity},{"priority",priority},
-                {"release_time",sim_->clock().now()},{"completed",nullptr},{"service",nullptr},{"pickup",nullptr},
-                {"time_window",{{"earliest",window.earliest},{"latest",window.latest}}}};
-            const auto before = sim_->snapshot();
-            const bool locked_delivery = before.status == VehicleStatus::Waiting || before.status == VehicleStatus::Unloading;
-            const auto result = sim_->insert_order(order);
-            record["accepted"] = result.accepted; record["reason"] = result.reason;
+            const Order order(id, o.at(o.contains("pickup_node_id") ? "pickup_node_id" : "warehouse").get<std::string>(), o.at("destination").get<std::string>(), quantity, window,
+                priority == "urgent" ? OrderPriority::Urgent : OrderPriority::Normal, fleet_->clock().now());
+            std::map<std::string, std::vector<NodeId>> before;
+            for (const auto& spec : fleet_->vehicle_specs()) { before.emplace(spec.id, fleet_->vehicle(spec.id).snapshot().future_nodes); }
+            const auto result = fleet_->insert_order(order); requested_.insert(id);
             if (result.accepted) {
-                requests_[id] = record;
-                planned_actions_.clear();
-                // Insertion starts after a committed waiting/unloading phase. Keep that action first.
-                if (locked_delivery && !before.next_order.empty()) {
-                    planned_actions_.push_back({before.next_order,OrderActionKind::Delivery});
-                }
-                for (const auto& stop : result.route.stops) { planned_actions_.push_back(stop.action); }
-            } else { rejected_.push_back(record); }
-            insertion = {{"accepted",result.accepted},{"id",id},{"reason",result.reason},{"path",result.route.nodes}};
+                latest_insertion_ = {{"time", fleet_->clock().now()}, {"id", id}, {"vehicle", *result.vehicle_id},
+                    {"before", before.at(*result.vehicle_id)}, {"after", result.path}};
+            } else {
+                rejected_.push_back({{"id", id}, {"vehicle_id", nullptr}, {"destination", order.delivery_node_id()}, {"warehouse", order.pickup_node_id()}, {"pickup_node_id", order.pickup_node_id()},
+                    {"quantity", quantity}, {"priority", priority}, {"window", {{"earliest", window.earliest}, {"latest", window.latest}}},
+                    {"accepted", false}, {"reason", result.reason}, {"completed", nullptr}, {"pickup", nullptr}, {"late_minutes", 0}, {"penalty", 0}});
+            }
+            insertion = {{"accepted", result.accepted}, {"id", id}, {"vehicle_id", nullable(result.vehicle_id)}, {"reason", result.reason}, {"path", result.path}};
         } else if (cmd != "state") { throw std::invalid_argument("unknown command"); }
         auto output = state(); output["insertion"] = insertion; return output;
     }
+private:
+    json latest_insertion_ = nullptr;
 };
 #ifdef _WIN32
 int wmain(int argc, wchar_t** argv) {
@@ -174,13 +166,10 @@ int main(int argc, char** argv) {
 #endif
     if (argc != 3) { return 2; }
     try {
-        SimulationSession session(argv[1],argv[2]);
-        std::string line;
-        while (std::getline(std::cin,line)) {
+        FleetSession session(argv[1], argv[2]); std::string line;
+        while (std::getline(std::cin, line)) {
             try { std::cout << session.command(json::parse(line)).dump() << '\n' << std::flush; }
-            catch (const std::exception& e) { std::cout << json{{"ok",false},{"error",e.what()}}.dump() << '\n' << std::flush; }
+            catch (const std::exception& error) { std::cout << json{{"ok", false}, {"error", error.what()}}.dump() << '\n' << std::flush; }
         }
-    } catch (const std::exception& e) {
-        std::cerr << e.what() << '\n'; return 1;
-    }
+    } catch (const std::exception& error) { std::cerr << error.what() << '\n'; return 1; }
 }

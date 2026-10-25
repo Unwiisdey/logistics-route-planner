@@ -106,7 +106,7 @@ class Handler(SimpleHTTPRequestHandler):
             if not 0 < size <= 8192:
                 raise ValueError("Invalid request length")
             body = json.loads(self.rfile.read(size))
-            if not isinstance(body, dict) or body.get("cmd") not in {"state", "reset", "advance", "insert"}:
+            if not isinstance(body, dict) or body.get("cmd") not in {"state", "reset", "advance", "insert", "traffic"}:
                 raise ValueError("Unsupported command")
             self.reply(self.bridge.command(body))
         except (ValueError, TypeError) as error:
