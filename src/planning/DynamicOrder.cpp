@@ -127,6 +127,42 @@ InsertionResult DynamicOrder::evaluate(const Graph& graph, const OrderPlanningCo
     }
     return result;
 }
+InsertionResult DynamicOrder::improve(const Graph& graph, const OrderPlanningContext& ctx,
+                                     InsertionResult best, ShortestPathCache* cache, const OrderId& urgent_focus) {
+    if (!best.accepted) { return best; }
+    ShortestPathCache local;
+    if (!cache) { cache = &local; }
+    const auto key = [&](const OrderRoute& route) {
+        double urgent_start = 0;
+        for (const auto& stop : route.stops) {
+            if (stop.action.order_id == urgent_focus && stop.action.kind == OrderActionKind::Delivery) {
+                urgent_start = stop.service_start;
+            }
+        }
+        return std::make_tuple(urgent_start, score(route, ctx.strategy), route.finish_time);
+    };
+    std::size_t budget = 256;
+    // Move one pending action at a time. No reversal assumption on a directed graph.
+    for (int pass = 0; pass < 3 && budget; ++pass) {
+        const auto sequence = actions(best.route);
+        auto next = best;
+        for (std::size_t from = 0; from < sequence.size() && budget; ++from) {
+            for (std::size_t to = 0; to < sequence.size() && budget; ++to) {
+                if (from == to) { continue; }
+                auto moved = sequence;
+                const auto action = moved[from];
+                moved.erase(moved.begin() + static_cast<std::ptrdiff_t>(from));
+                moved.insert(moved.begin() + static_cast<std::ptrdiff_t>(to), action);
+                --budget;
+                auto attempt = evaluate(graph, ctx, moved, cache);
+                if (attempt.accepted && key(attempt.route) < key(next.route)) { next = std::move(attempt); }
+            }
+        }
+        if (!(key(next.route) < key(best.route))) { break; }
+        best = std::move(next);
+    }
+    return best;
+}
 InsertionResult DynamicOrder::insert(const Graph& graph, const OrderPlanningContext& ctx, const Order& order,
                                      ShortestPathCache* cache) {
     ShortestPathCache local;
@@ -161,7 +197,8 @@ InsertionResult DynamicOrder::insert(const Graph& graph, const OrderPlanningCont
         }
     }
     if (!best.accepted) { best.reason += "; last constraint failure: " + last_reason; }
-    return best;
+    return improve(graph, candidate_context, std::move(best), cache,
+                   order.priority() == OrderPriority::Urgent ? order.id() : OrderId{});
 }
 InsertionResult DynamicOrder::initial(const Graph& graph, OrderPlanningContext ctx, ShortestPathCache* cache) {
     ShortestPathCache local;
@@ -193,6 +230,7 @@ InsertionResult DynamicOrder::initial(const Graph& graph, OrderPlanningContext c
             }
         }
         if (!best.accepted) { return best; }
+        best = improve(graph, ctx, std::move(best), cache);
         ctx.incumbent = actions(best.route);
         result = std::move(best);
     }

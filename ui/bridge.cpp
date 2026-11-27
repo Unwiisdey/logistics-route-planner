@@ -22,17 +22,45 @@ class FleetSession {
     std::vector<json> rejected_;
     std::set<std::string> requested_;
     std::size_t generated_{0};
+    json settings_ = {{"capacity_v01", 40}, {"capacity_v02", 40}, {"start_time", 480},
+        {"traffic_interval_seconds", 30}, {"traffic_fraction_percent", 10},
+        {"traffic_enabled", true}, {"seed", 42}, {"strategy", "distance"}};
 public:
     FleetSession(const std::filesystem::path& network, const std::filesystem::path& orders)
         : initial_graph_(ConfigLoader::load_network(network)), initial_orders_(OrderConfigLoader::load(orders).initial_orders) { reset(); }
-    void reset() {
-        SimulationOptions o; o.step_minutes = 1; o.capacity_kg = 40;
+    void reset() { configure(settings_); }
+    void configure(const json& requested) {
+        auto settings = settings_;
+        for (auto it = requested.begin(); it != requested.end(); ++it) {
+            if (!settings.contains(it.key())) { throw std::invalid_argument("unknown setting: " + it.key()); }
+            settings[it.key()] = it.value();
+        }
+        const auto number = [&](const char* name, double low, double high) {
+            if (!settings.at(name).is_number()) { throw std::invalid_argument(std::string("invalid setting: ") + name); }
+            const double value = settings.at(name).get<double>();
+            if (!std::isfinite(value) || value < low || value > high) { throw std::invalid_argument(std::string("setting out of range: ") + name); }
+            return value;
+        };
+        const auto cap1 = number("capacity_v01", .01, 100000);
+        const auto cap2 = number("capacity_v02", .01, 100000);
+        const auto start = number("start_time", 0, 1439);
+        TrafficOptions traffic;
+        traffic.interval_minutes = number("traffic_interval_seconds", 1, 3600) / 60;
+        traffic.fraction = number("traffic_fraction_percent", .01, 100) / 100;
+        const auto seed = number("seed", 0, 4294967295.0);
+        if (std::floor(seed) != seed || !settings.at("traffic_enabled").is_boolean()) { throw std::invalid_argument("invalid traffic settings"); }
+        traffic.seed = static_cast<std::uint32_t>(seed);
+        const auto strategy = settings.at("strategy").get<std::string>();
+        if (strategy != "distance" && strategy != "cost") { throw std::invalid_argument("invalid strategy"); }
+        SimulationOptions o; o.step_minutes = 1;
         auto candidate = std::make_unique<FleetSimulation>(initial_graph_,
-            std::vector<FleetVehicleSpec>{{"V01", "W01", 40}, {"V02", "W01", 40}}, initial_orders_, 480, o);
+            std::vector<FleetVehicleSpec>{{"V01", "W01", cap1}, {"V02", "W01", cap2}}, initial_orders_, start, o,
+            strategy == "distance" ? RouteStrategy::ShortestDistance : RouteStrategy::LowestCost);
         for (const auto& assignment : candidate->assignments()) {
             if (!assignment.accepted) { throw std::invalid_argument("initial order cannot be assigned: " + assignment.order_id + ": " + assignment.reason); }
         }
-        candidate->enable_traffic(); fleet_ = std::move(candidate);
+        if (settings.at("traffic_enabled").get<bool>()) { candidate->enable_traffic(traffic); }
+        fleet_ = std::move(candidate); settings_ = std::move(settings);
         latest_insertion_ = nullptr; rejected_.clear(); requested_.clear(); generated_ = 0;
         for (const auto& order : initial_orders_) { requested_.insert(order.id()); }
     }
@@ -109,7 +137,7 @@ public:
                 pickup_points.push_back({{"node_id", id}, {"waiting_orders", fleet_->waiting_pickups(id)}});
             }
         }
-        return {{"ok", true}, {"time", fleet_->clock().now()}, {"finished", fleet_->finished()}, {"nodes", nodes}, {"edges", edges},
+        return {{"ok", true}, {"settings", settings_}, {"time", fleet_->clock().now()}, {"finished", fleet_->finished()}, {"nodes", nodes}, {"edges", edges},
             {"vehicles", vehicles}, {"orders", orders}, {"events", events}, {"traffic_version", reference.size()},
             {"app", "logistics-route-planner"}, {"ui_version", 2}, {"demo", false}, {"engine", "C++17 FleetSimulation"},
             {"latest_insertion", latest_insertion_}, {"pickup_points", pickup_points},
@@ -118,6 +146,10 @@ public:
     json command(const json& input) {
         const auto cmd = input.at("cmd").get<std::string>(); json insertion = nullptr;
         if (cmd == "reset") { reset(); }
+        else if (cmd == "configure") {
+            if (!input.at("settings").is_object()) { throw std::invalid_argument("settings must be an object"); }
+            configure(input.at("settings"));
+        }
         else if (cmd == "advance") {
             const auto minutes = input.at("minutes").get<double>();
             if (!std::isfinite(minutes) || minutes <= 0 || minutes > 10) { throw std::invalid_argument("advance must be in (0,10]"); }

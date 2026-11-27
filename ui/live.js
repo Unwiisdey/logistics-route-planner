@@ -2,6 +2,8 @@
   'use strict';
   const $ = id => document.getElementById(id);
   const form = $('order-form');
+  const settingsForm = $('settings-form');
+  let settingsKey = '';
   const esc = text => String(text ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const colors = {V01:'#3477de', V02:'#dc8b38'};
   const tints = {V01:'#edf4ff', V02:'#fff4e7'};
@@ -37,6 +39,7 @@
   function controls() {
     for (const id of ['play','step','reset','jam']) $(id).disabled=state.busy || !state.data;
     form.querySelector('[type=submit]').disabled=state.busy || !state.data;
+    settingsForm.querySelector('[type=submit]').disabled=state.busy || !state.data;
     $('play').textContent=state.playing?'Ⅱ 暂停仿真':'▶ 开始仿真';
     $('step').disabled=state.busy || !state.data || state.playing;
     $('speed').disabled=state.busy;
@@ -50,7 +53,11 @@
       const result=await response.json();
       if (!response.ok || !result.ok) throw new Error(result.error || '请求失败');
       state.data=result; render(); return result;
-    } catch(error) { stop(); notify(`操作未完成：${error.message}`,true); return null; }
+    } catch(error) {
+      stop();
+      const message=cmd==='configure'?`设置未应用：${translate(error.message)}。请检查容量、起始时间与初始订单窗口。`:error.message;
+      notify(`操作未完成：${message}`,true); return null;
+    }
     finally { state.busy=false; controls(); }
   }
   async function tick() {
@@ -172,6 +179,16 @@
   }
   function render() {
     const d=state.data;if(!d)return;initOptions(d);
+    const cfg=d.settings;
+    if(cfg){
+      const key=JSON.stringify(cfg);
+      if(key!==settingsKey){
+        for(const [name,value] of Object.entries(cfg)) settingsForm.elements[name].value=name==='start_time'?hm(value):String(value);
+        settingsKey=key;
+      }
+      $('traffic-note').textContent=cfg.traffic_enabled?`每 ${cfg.traffic_interval_seconds} 模拟秒更新 ${cfg.traffic_fraction_percent}% 道路`:'随机路况已关闭';
+      $('fleet-settings-note').textContent=`C++17 双车配送系统 · V01 ${cfg.capacity_v01} kg / V02 ${cfg.capacity_v02} kg · ${cfg.strategy==='cost'?'成本':'距离'}优先`;
+    }
     $('clock').textContent=clock(d.time);
     const delivered=d.vehicles.reduce((s,v)=>s+v.delivered,0),total=d.orders.filter(o=>o.accepted).length;
     $('completed').innerHTML=`${delivered} <small>/ ${total} 单</small>`;
@@ -196,7 +213,19 @@
   $('log-filter').addEventListener('change',()=>{state.filter=$('log-filter').value;renderEvents(state.data);});
   $('play').addEventListener('click',()=>{if(state.playing)stop();else{state.playing=true;controls();notify('仿真运行中：两辆车随同一时钟推进，路况每 30 秒共享更新。');tick();}});
   $('step').addEventListener('click',async()=>{const d=await command('advance',{minutes:1});if(d)notify(`已推进到 ${clock(d.time)}，两车位置与预计到达时间已更新。`);});
-  $('reset').addEventListener('click',async()=>{stop();state.lastChange=null;state.timesDirty=false;state.focus='all';const d=await command('reset');if(d){$('form-result').textContent='';form.elements.id.value='';notify('已重置：V01 装载 40 kg，V02 装载 20 kg，共 3 笔初始订单。');}});
+  $('reset').addEventListener('click',async()=>{stop();state.lastChange=null;state.timesDirty=false;state.focus='all';const d=await command('reset');if(d){$('form-result').textContent='';form.elements.id.value='';notify('已按当前设置重新开始，手动订单已清除。');}});
+  settingsForm.addEventListener('submit',async event=>{
+    event.preventDefault();stop();
+    if(!settingsForm.reportValidity()) return;
+    const settings={};
+    for(const name of ['capacity_v01','capacity_v02','traffic_interval_seconds','traffic_fraction_percent','seed']) settings[name]=Number(settingsForm.elements[name].value);
+    settings.start_time=timeValue(settingsForm.elements.start_time.value);
+    settings.strategy=settingsForm.elements.strategy.value;
+    settings.traffic_enabled=settingsForm.elements.traffic_enabled.value==='true';
+    const d=await command('configure',{settings});
+    if(d){state.lastChange=null;state.timesDirty=false;state.focus='all';form.elements.id.value='';$('form-result').textContent='';render();notify('设置已生效，已重新规划初始订单。');}
+    $('settings-result').textContent=d?'设置已应用。':'设置未应用，请查看上方原因；原运行状态已保留。';
+  });
   $('jam').addEventListener('click',async()=>{stop();const road=state.road;const d=await command('traffic',{road_id:road});if(d)notify(`已将 ${road} 当前耗时增加 80%；两车共享更新，受影响的后续区间自动修复。`);});
   form.elements.earliest.addEventListener('input',()=>state.timesDirty=true);
   form.elements.latest.addEventListener('input',()=>state.timesDirty=true);

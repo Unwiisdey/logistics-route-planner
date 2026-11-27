@@ -128,3 +128,9 @@ vehicles 含 id/capacity/load/status、节点或边位置、当前 segment 的 t
 POST /api/command 接受 state/reset/advance/insert/traffic。advance.minutes 为 (0,10] 的有限分钟；所有车只推进共享时钟一次，空闲车仍可等未来订单。insert.order 使用 pickup_node_id（兼容旧 warehouse，不能同时提供）、destination、quantity、earliest/latest、priority、可选 id（最多 40 字节）；留空生成不与已用 ID 冲突的 MANUALn。成功响应 insertion 含 accepted/id/vehicle_id/reason/path；业务拒单 ok=true 且 accepted=false，非法输入 ok=false。
 
 traffic.road_id 将道路当前耗时乘 1.8；可选 minutes 直接指定绝对耗时（核心校验有限非负）。只在当前已验证的本机来源下接受 HTTP 请求，仍保留 Host/Origin 与 8192 字节上限。latest_insertion 保存最近一次已接受的插入前后路径，刷新页面可继续查看；拒单不覆盖它。reset 清除本轮订单与比较记录，保留初始配置。
+
+## 设置与任务顺序优化扩展
+
+DynamicOrder::improve(graph, context, seed, cache=nullptr, urgent_focus={})：对可行种子尝试至多 3 轮、累计 256 次动作移动，逐候选完整检查约束，返回不劣于种子的目标值；有 urgent_focus 时该单服务开始时间优先。失败种子原样返回，不承诺全局最优。initial/insert 自动使用，旧静态 Planner 保持原算法。
+
+HTTP 新增 configure，参数 settings 为对象，可部分更新：capacity_v01、capacity_v02、start_time（连续分钟，当天 0～1439）、strategy（distance/cost）、traffic_enabled（布尔）、traffic_interval_seconds、traffic_fraction_percent、seed。字段范围见 UI 手册；未知字段和非法类型拒绝。先完整创建、分配、校验候选车队再替换，失败时车队、订单、时钟和已应用设置均不变。成功后清除本轮手动订单与比较记录；reset 沿用已应用设置。state.settings 返回权威参数，页面草稿不影响执行。

@@ -16,6 +16,23 @@ class BridgeTests(unittest.TestCase):
         line=self.process.stdout.readline()
         if not line: raise RuntimeError(self.process.stderr.read())
         return json.loads(line)
+    def test_settings_transaction_and_reset(self):
+        before = self.call(cmd='state')
+        for cfg in [dict(capacity_v01=1,capacity_v02=1),dict(start_time=1439),dict(seed=-1),dict(seed=1.5),dict(strategy='invalid'),dict(traffic_interval_seconds=0),dict(traffic_fraction_percent=0)]:
+            with self.subTest(cfg=cfg):
+                self.assertFalse(self.call(cmd='configure',settings=cfg)['ok'])
+                self.assertEqual(self.call(cmd='state'),before)
+        current = self.call(cmd='configure',settings=dict(capacity_v01=60,capacity_v02=50,start_time=490,
+            traffic_interval_seconds=60,traffic_fraction_percent=25,seed=7,traffic_enabled=False,strategy='cost'))
+        self.assertTrue(current['ok'])
+        self.assertEqual(current['time'],490)
+        self.assertEqual([v['capacity'] for v in current['vehicles']],[60,50])
+        self.assertEqual(current['settings']['strategy'],'cost')
+        advanced=self.call(cmd='advance',minutes=1)
+        self.assertEqual(advanced['traffic_version'],0)
+        reset=self.call(cmd='reset')
+        self.assertEqual(reset['settings'],current['settings'])
+        self.assertEqual(reset['time'],490)
     def order(self, **kwargs):
         body=dict(id='TEST-01',warehouse='W01',destination='D05',quantity=5,priority='urgent',earliest=480,latest=720)
         if 'pickup_node_id' in kwargs: body.pop('warehouse')

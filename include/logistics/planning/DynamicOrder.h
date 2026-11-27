@@ -38,7 +38,7 @@ struct OrderPlanningContext {
     RouteStrategy strategy{RouteStrategy::ShortestDistance};
     std::vector<Order> orders;                 // Every remaining accepted order.
     std::set<OrderId> loaded;                  // Cargo physically on vehicle at the anchor.
-    std::vector<OrderAction> incumbent;        // Relative order of existing actions is retained.
+    std::vector<OrderAction> incumbent;        // Remaining actions; feasible local moves may reorder them.
 };
 struct InsertionResult {
     bool accepted{false};
@@ -47,6 +47,10 @@ struct InsertionResult {
 };
 class DynamicOrder {
 public:
+    // Bounded relocation search, with full constraint checks and optional urgent-order priority.
+    static InsertionResult improve(const Graph& graph, const OrderPlanningContext& context,
+                                   InsertionResult seed, ShortestPathCache* cache = nullptr,
+                                   const OrderId& urgent_focus = {});
     static Order urgent(OrderId id, NodeId warehouse, NodeId destination, double quantity,
                         Minutes received_at, Minutes deadline_after = 60);
     static InsertionResult evaluate(const Graph& graph, const OrderPlanningContext& context,

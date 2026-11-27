@@ -1,3 +1,8 @@
+.settings-panel { margin: 0 0 18px; padding: 18px 22px; }
+.settings-panel summary { cursor: pointer; font-weight: 600; }
+.settings-panel summary .muted { margin-left: 12px; font-weight: 400; }
+.settings-panel form { margin-top: 18px; }
+#settings-result { margin-top: 10px; font-size: 13px; }
 :root{
   color-scheme:light;
   --bg:#f3f6fa;

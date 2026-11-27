@@ -18,10 +18,28 @@
       <div class="control-buttons"><button class="primary" id="play" disabled>▶ 开始仿真</button><button id="step" disabled>单步 +1 分钟</button><label class="speed-label">播放速度<select id="speed" aria-label="播放速度"><option value="0.5">0.5 分钟 / 步</option><option value="1" selected>1 分钟 / 步</option><option value="5">5 分钟 / 步</option></select></label><button class="text-button" id="reset" disabled>重置</button></div>
       <div class="shared-note"><i></i>同一路网 · 同一时钟 · 订单归属固定</div>
     </section>
+    <details class="panel settings-panel" id="settings-panel">
+      <summary>⚙ 仿真设置 <span class="muted">容量 · 起始时间 · 路况 · 规划目标</span></summary>
+      <form id="settings-form">
+        <div class="form-grid">
+          <label>V01 容量 / kg<input name="capacity_v01" type="number" min="0.01" max="100000" step="0.01" required></label>
+          <label>V02 容量 / kg<input name="capacity_v02" type="number" min="0.01" max="100000" step="0.01" required></label>
+          <label>起始时间<input name="start_time" type="time" required></label>
+          <label>规划目标<select name="strategy"><option value="distance">距离优先，超时尝试省时</option><option value="cost">成本优先，超时尝试省时</option></select></label>
+          <label>路况更新间隔 / 模拟秒<input name="traffic_interval_seconds" type="number" min="1" max="3600" step="any" required></label>
+          <label>每次更新道路比例 / %<input name="traffic_fraction_percent" type="number" min="0.01" max="100" step="any" required></label>
+          <label>随机种子<input name="seed" type="number" min="0" max="4294967295" step="1" required></label>
+          <label>随机路况<select name="traffic_enabled"><option value="true">开启</option><option value="false">关闭（仍可手动拥堵）</option></select></label>
+        </div>
+        <p class="form-hint">应用后重新开始本轮仿真，清除手动订单。初始订单发布时间与时间窗口保持配置值；参数无法完成初始分单时保留原运行状态。</p>
+        <button class="primary" type="submit" disabled>应用设置并重新开始</button>
+        <div id="settings-result" role="status" aria-live="polite"></div>
+      </form>
+    </details>
     <section class="metrics" aria-label="车队概览">
       <article><span class="caption">配送完成</span><strong id="completed">0 <small>/ 3 单</small></strong><span class="metric-note">两辆车合计</span></article>
       <article><span class="caption">执行任务车辆</span><strong id="active">2 <small>/ 2 辆</small></strong><span class="metric-note">独立载重与任务</span></article>
-      <article><span class="caption">当前拥堵道路</span><strong id="congested">0 <small>条</small></strong><span class="metric-note">每 30 秒统一更新</span></article>
+      <article><span class="caption">当前拥堵道路</span><strong id="congested">0 <small>条</small></strong><span class="metric-note" id="traffic-note">每 30 秒统一更新</span></article>
       <article><span class="caption">累计处罚</span><strong id="penalty">0 <small>分</small></strong><span class="metric-note" id="late-note">超时 0 单 · 向上取整计分钟</span></article>
     </section>
     <div id="notice" class="notice" role="status" aria-live="polite">正在读取配送网络…</div>
@@ -40,13 +58,13 @@
       <section class="panel order-form-panel"><div class="panel-heading"><div><h2>添加动态订单</h2><p class="muted">分别试算两车，系统自动选择可行车辆</p></div><span class="small-icon">＋</span></div>
         <form id="order-form">
           <div class="form-grid"><label class="wide">订单 ID <span class="optional">可留空，自动生成</span><input name="id" maxlength="40" placeholder="例如 MANUAL1" autocomplete="off"></label><label>取货地点<select name="warehouse" required></select></label><label>配送点<select name="destination" required></select></label><label>货物量 / kg<input name="quantity" type="number" min="0.01" step="0.01" value="5" required></label><label>优先级<select name="priority"><option value="urgent">紧急订单</option><option value="normal">普通订单</option></select></label><label>窗口开始<input name="earliest" type="time" value="08:00" required></label><label>窗口结束<input name="latest" type="time" value="09:00" required></label></div>
-          <button class="primary submit-order" type="submit" disabled>提交并自动分配</button><p class="form-hint">先满足取货、载重与全部剩余窗口，再比较送达时间。</p><p class="form-hint" id="pickup-points" aria-live="polite"></p><div id="form-result" class="form-result" role="status" aria-live="polite"></div>
+          <button class="primary submit-order" type="submit" disabled>提交并自动分配</button><p class="form-hint">先满足取货、载重与全部剩余窗口；紧急单优先送达，普通单按规划目标选择。</p><p class="form-hint" id="pickup-points" aria-live="polite"></p><div id="form-result" class="form-result" role="status" aria-live="polite"></div>
         </form>
       </section>
       <section class="panel orders-panel"><div class="panel-heading"><div><h2>订单与车辆归属</h2><p class="muted">分配后保持归属，已完成订单仍保留记录</p></div><span class="count-badge" id="order-count">3 单</span></div><div class="table-scroll"><table><thead><tr><th>订单 / 配送点</th><th>所属车辆</th><th>货物</th><th>时间窗口</th><th>状态</th><th>处罚</th></tr></thead><tbody id="orders"></tbody></table></div><div class="table-note">早到等待；以开始卸货时判断迟到。迟到分钟向上取整，每分钟处罚 1 分。</div></section>
     </div>
     <div class="event-workspace"><section class="panel events-panel"><div class="panel-heading"><div><h2>事件日志</h2><p class="muted">统一时间线，查看分单、取送与共享路况</p></div><select id="log-filter" aria-label="日志筛选"><option value="all">全部事件</option><option value="V01">V01</option><option value="V02">V02</option><option value="order">订单分配</option><option value="traffic">共享路况</option></select></div><ol id="events"></ol></section><section class="panel replan-panel"><div class="panel-heading"><div><h2>最近路线调整</h2><p class="muted">保留已有任务归属，修复受影响区间</p></div></div><div id="replan-detail" class="replan-detail"><div class="empty-state">出现拥堵或插入订单后，<br>在这里查看路线调整结果。</div></div></section></div>
-    <footer><span>C++17 双车配送系统 · 两车各 40 kg · 本地运行</span><span><a href="/replay.html">查看历史单车回放</a></span></footer>
+    <footer><span id="fleet-settings-note">C++17 双车配送系统 · 本地运行</span><span><a href="/replay.html">查看历史单车回放</a></span></footer>
   </main>
 </div>
 <script src="app.js"></script>
